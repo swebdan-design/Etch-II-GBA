@@ -1,0 +1,5 @@
+d85dc65386a383e46602782e968579f5a7552e7cd32a4a860f2ffc182d91d985  src/corrosion/legacy/corrosion.c
+43ed75c99eed49405bca931b9e359d9929d28ceba4c400e81a69c5f8b5c434f7  src/corrosion/legacy/names.c
+c6a035c960c04391d97c8eb36f70549b1492d64844e0f79902e7730c5f3d3f72  src/corrosion/legacy/pattern.c
+8ad49e19e4b5031f233f7ac81fd83341171149445cf9c733b8a7e35fdb17c274  src/corrosion/legacy/corrosion.h
+dd9d624b0cd4eeb94e877b092543da9d99d9b61abbed61700124d44f8c715479  src/corrosion/legacy/etch.h
