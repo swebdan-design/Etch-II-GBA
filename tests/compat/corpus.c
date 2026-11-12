@@ -52,6 +52,11 @@ static void crc_init(void)
     }
 }
 
+#ifdef CORPUS_CAPTURE
+__attribute__((section(".sbss"))) uint8_t capture_buf[65536];
+uint32_t capture_len;
+uint8_t capture_sect = 0xFF, cur_sect;
+#endif
 static void emit(const void *p, uint16_t n)
 {
     const uint8_t *b = (const uint8_t *)p;
@@ -60,6 +65,9 @@ static void emit(const void *p, uint16_t n)
     for (i = 0; i < n; i++) c = crc_tab[(uint8_t)(c ^ b[i])] ^ (c >> 8);
     cur_crc = c;
     cur_bytes += n;
+#ifdef CORPUS_CAPTURE
+    if (cur_sect == capture_sect) for (i = 0; i < n && capture_len < sizeof capture_buf; i++) capture_buf[capture_len++] = b[i];
+#endif
 #ifdef CORPUS_HOST
     if (dumpf) fwrite(p, 1, n, dumpf);
 #endif
@@ -108,7 +116,11 @@ static void random_gen(void)
     g.mode = lrn(EVO_COUNT);
 }
 
-static void begin(void) { cur_crc = 0xFFFFFFFFUL; cur_bytes = 0; }
+static void begin(void) { cur_crc = 0xFFFFFFFFUL; cur_bytes = 0;
+#ifdef CORPUS_CAPTURE
+    cur_sect++;
+#endif
+}
 static void end(corpus_result_t *r, uint8_t s) { r->crc[s] = ~cur_crc; r->bytes[s] = cur_bytes; }
 
 void corpus_run(corpus_result_t *r)
@@ -118,6 +130,9 @@ void corpus_run(corpus_result_t *r)
     char code[13];
 
     crc_init();
+#ifdef CORPUS_CAPTURE
+    cur_sect = 0xFF;
+#endif
     r->magic = 0;
     r->n = CORPUS_N;
 
@@ -193,7 +208,12 @@ void corpus_run(corpus_result_t *r)
         pattern_clear(&a);
         corr_generate(&a, &g, GEN_ALL);
         if (lrn(3) == 0) { a.flags[lrn(16)] |= STEP_LOCK; a.lock = (uint8_t)(PLOCK_LANE0 << lrn(4)); }
-        m = corr_regen(&a, &g, lrand(), (uint8_t)(1 + lrn(3)));
+        {   /* arguments drawn first: C leaves argument evaluation order
+             * unspecified, and x86 / ARM compilers differ */
+            uint16_t sd = lrand();
+            uint8_t what = (uint8_t)(1 + lrn(3));
+            m = corr_regen(&a, &g, sd, what);
+        }
         emit16(m);
         emit_pat(&a);
         corr_regen_material(&c, &g, lrand());

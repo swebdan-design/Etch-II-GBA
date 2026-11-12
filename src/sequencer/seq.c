@@ -28,7 +28,7 @@ void voice_govern(uint16_t lines) IWRAM_CODE;
 volatile uint8_t seq_playing, seq_step, seq_cur, seq_queued = 0xFF, seq_chain_pos, seq_chain_bar;
 volatile uint8_t seq_loop, seq_bar_total, seq_phrase, seq_fill, seq_fill_hold, seq_step_event;
 volatile uint16_t seq_activity;
-volatile uint32_t seq_steps_total;
+volatile uint32_t seq_steps_total, seq_gates_total, seq_gate_late;
 volatile uint8_t seq_xpos[XT_COUNT];
 uint16_t seq_fill_mask[NUM_LANES];
 static uint8_t fill_bars;
@@ -295,6 +295,7 @@ static void step_advance(void)
         xp = &proj.xpat[seq_cur];
         for (x = 0; x < XT_COUNT; x++) x_next[x] = xdecide(xp, x, 0);
     } else {
+        if (!gate_done) seq_gate_late++;               /* would mean a gate was skipped */
         seq_step = (uint8_t)((seq_step + 1) & 15);
         if (seq_step == 0) bar_boundary();
     }
@@ -371,6 +372,7 @@ static void gate_point(void)
     const xpattern_t *xp = &proj.xpat[seq_cur];
     uint8_t f, x;
     gate_done = 1;
+    seq_gates_total++;
     if (seq_step == 15) evo_commit_point();
     f = p->flags[seq_step];
     if (cur_plays) {
