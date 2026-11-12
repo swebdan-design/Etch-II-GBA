@@ -58,7 +58,7 @@ static void draw_wave(uint32_t t)
     }
     for (x = 0; x < 240; x++) {
         int k;
-        for (k = 0; k < rust[x]; k++) if ((tr() & 3) != 0) plot(x, 47 - k, (k & 1) ? 3 : 1);
+        for (k = 0; k < rust[x]; k++) if ((tr() & 3) != 0) plot(x, 47 - k, (k & 1) ? 4 : 3);
     }
     /* the trace: sine -> quantised, bitten waveform */
     for (x = 0; x < 240; x++) {
@@ -71,8 +71,8 @@ static void draw_wave(uint32_t t)
         y = 20 - (s * 15) / 32767;
         if (prev >= 0) {
             int a = prev < y ? prev : y, b = prev < y ? y : prev, k;
-            for (k = a; k <= b; k++) plot(x, k, 2);
-        } else plot(x, y, 2);
+            for (k = a; k <= b; k++) plot(x, k, 1);
+        } else plot(x, y, 1);
         prev = y;
     }
     {
@@ -90,7 +90,7 @@ void scr_title_run(void)
     ui_cls();
     for (y = 0; y < LOGO_H; y++)
         for (x = 0; x < LOGO_W; x++)
-            ui_put((uint8_t)(11 + x), (uint8_t)(3 + y), (uint16_t)(T_LOGO + y * LOGO_W + x), PAL_LOGO);
+            ui_put((uint8_t)(8 + x), (uint8_t)(1 + y), (uint16_t)(T_LOGO + y * LOGO_W + x), PAL_LOGO);
     ui_text(0, 6, "A Generative Synthesis Machine", PAL_TEXT);
     ui_text(7, 8, "by Synth Centric", PAL_LABEL);
     bm_map();

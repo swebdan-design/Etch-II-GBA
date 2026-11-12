@@ -142,3 +142,11 @@ void project_defaults(project2_t *p)
         xpattern_clear(&p->xpat[i]);
     }
 }
+
+/* ETCH's kit names per ORIGINAL drum lane (src/drums/drums.c in ETCH) */
+const char * const drum_kit_names2[NUM_LANES][4] = {
+    { "DEEP ", "PUNCH", "THUD ", "CLICK" },
+    { "SHORT", "GRIT ", "CLAP ", "RIM  " },
+    { "CLOSD", "TICK ", "SHAKE", "SHARP" },
+    { "OPEN ", "METAL", "BLIP ", "CRASH" },
+};

@@ -189,15 +189,15 @@ LOGO = [
     "#########......##....#########.##.....##.....####.####",
     "#########......##.....########.##.....##.....####.####",
 ]
-LW = 56                                    # 7 tiles wide
-LH = 16                                    # 2 tiles high
+LW = 112                                   # 14 tiles wide (logo drawn at 2x)
+LH = 32                                    # 4 tiles high
 logo_px = [[0] * LW for _ in range(LH)]
 for y, row in enumerate(LOGO):
     for x, ch in enumerate(row):
         if ch == "#":
-            logo_px[y + 3][x + 1] = 1
-            if y + 4 < LH and x + 2 < LW and LOGO[min(y + 1, len(LOGO) - 1)][x] != "#":
-                pass
+            for dy in range(2):
+                for dx in range(2):
+                    logo_px[y * 2 + dy + 5][x * 2 + dx + 2] = 1
 # a copper "etched" shadow one pixel down-right
 shadow = [[0] * LW for _ in range(LH)]
 for y in range(LH - 1):
@@ -205,15 +205,15 @@ for y in range(LH - 1):
         if logo_px[y][x] == 1 and logo_px[y + 1][x + 1] == 0:
             shadow[y + 1][x + 1] = 1
 LOGO_BASE = 170
-for ty in range(2):
-    for tx in range(7):
+for ty in range(4):
+    for tx in range(14):
         t = [[2] * 8 for _ in range(8)]
         for y in range(8):
             for x in range(8):
                 px = logo_px[ty * 8 + y][tx * 8 + x]
                 sh = shadow[ty * 8 + y][tx * 8 + x]
                 t[y][x] = 1 if px else (3 if sh else 2)
-        tiles[LOGO_BASE + ty * 7 + tx] = t
+        tiles[LOGO_BASE + ty * 14 + tx] = t
 
 # ---- palette (BGR555) -------------------------------------------------------------
 def c(r, g, b):
@@ -244,12 +244,12 @@ pals = [
     (GRAPHITE, COPPER, PANEL, COPPER),      # 11 panel label
     (GRAPHITE, (120, 70, 44), GRAPHITE, (70, 46, 34)),   # 12 deep corrosion
     (GRAPHITE, (150, 150, 140), GRAPHITE, (90, 70, 50)), # 13 tarnish
-    (GRAPHITE, AMBER, GRAPHITE, (120, 84, 40)),          # 14 scope trace
+    (GRAPHITE, AMBER, GRAPHITE, (150, 84, 50), (96, 54, 36)),  # 14 scope: trace, rust, deep rust
     (GRAPHITE, GRAPHITE, COPPER, COPPER),   # 15 inverted copper
 ]
 pal_vals = []
 for p in pals:
-    entry = [c(*p[0]), c(*p[1]), c(*p[2]), c(*p[3])] + [c(*p[0])] * 12
+    entry = [c(*x) for x in p] + [c(*p[0])] * (16 - len(p))
     pal_vals += entry
 
 # ---- emit -------------------------------------------------------------------------
@@ -282,7 +282,7 @@ for name, (code, _) in G.items():
     hdr.append("#define T_%s %d" % (name, code))
 hdr += ["#define T_VMETER 144", "#define T_HBAR 153", "#define T_CORNER_TL 162", "#define T_CORNER_TR 163",
         "#define T_CORNER_BL 164", "#define T_CORNER_BR 165", "#define T_SPECKLE 166",
-        "#define T_LOGO %d" % LOGO_BASE, "#define LOGO_W 7", "#define LOGO_H 2",
+        "#define T_LOGO %d" % LOGO_BASE, "#define LOGO_W 14", "#define LOGO_H 4",
         "enum { PAL_TEXT, PAL_LABEL, PAL_VALUE, PAL_CURSOR, PAL_DIM, PAL_PLAY, PAL_HEAD, PAL_ALERT,",
         "       PAL_LOGO, PAL_PLAYHEAD, PAL_PANEL, PAL_PANEL_LABEL, PAL_RUST1, PAL_TARNISH, PAL_SCOPE, PAL_INV };",
         "#endif"]

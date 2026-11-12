@@ -214,7 +214,7 @@ void scr_live_frame(void)
     if ((uint8_t)mix_frames != last_scope) {
         last_scope = (uint8_t)mix_frames;
         if ((last_scope & 1) == 0) w_scope_draw();
-        ui_bar(4, 17, 9, mix_peak, 127, mix_peak > 120 ? PAL_ALERT : PAL_PLAY);
+        ui_bar(4, 17, 9, mix_peak, 127, mix_peak >= 127 ? PAL_ALERT : PAL_PLAY);
         ui_bar(4, 18, 9, (uint8_t)(mix_lines_last > 228 ? 228 : mix_lines_last), 228, mix_lines_last > 200 ? PAL_ALERT : PAL_DIM);
     }
 }
