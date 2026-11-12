@@ -1,0 +1,8 @@
+piece 1: avg 57%  max 94%  underruns 0  voices freed 164 (sounding notes 20)
+piece 2: avg 58%  max 85%  underruns 0  voices freed 146 (sounding notes 13)
+piece 3: avg 55%  max 86%  underruns 0  voices freed 216 (sounding notes 22)
+piece 4: avg 60%  max 93%  underruns 0  voices freed 130 (sounding notes 52)
+piece 5: avg 58%  max 85%  underruns 0  voices freed 117 (sounding notes 60)
+piece 6: avg 60%  max 82%  underruns 0  voices freed 103 (sounding notes 46)
+piece 7: avg 53%  max 89%  underruns 0  voices freed 145 (sounding notes 78)
+piece 8: avg 55%  max 77%  underruns 0  voices freed 115 (sounding notes 57)

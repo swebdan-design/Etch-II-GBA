@@ -1,0 +1,15 @@
+GBDK_HOME=/opt/gbdk python3 tests/compat/run_compat.py ../swebdan-design/etch---gb
+PASS  legacy corrosion.c identical to ETCH source  d85dc65386a383e4
+PASS  legacy pattern.c identical to ETCH source  c6a035c960c04391
+PASS  legacy names.c identical to ETCH source  43ed75c99eed4940
+PASS  legacy corrosion.h identical to ETCH source  8ad49e19e4b5031f
+PASS  legacy etch.h identical to ETCH source  dd9d624b0cd4eeb9
+PASS  host: original vs ETCH II byte streams identical (N=4096, 22334848 bytes)  180224 generations, 98304 mutations, 32768 regens, 16384 fills
+PASS  SDCC: corrosion.o identical to the object inside the ETCH v2.5 release build  
+PASS  SDCC on Game Boy (mGBA): ORIGINAL CORROSION corpus == host (7 sections, N=64)  2FDFD93B,8BB9461B,8086D90E,E47B7B35,D713A038,9DFA55EA,D5C22C8B after 37200 frames
+PASS  ARM on GBA (mGBA): ETCH II CORROSION corpus == host (7 sections, N=64)  2FDFD93B,8BB9461B,8086D90E,E47B7B35,D713A038,9DFA55EA,D5C22C8B after 1200 frames
+PASS  ETCH v2.5 release ROM == rebuild from source (symbols valid for the release)  bf2c82a4d307a0cd
+PASS  RELEASED ETCH v2.5 ROM (mGBA GB core): GEN ALL from 24 seed codes == host generation  24/24
+PASS  ETCH II ROM (mGBA): GEN ALL from 24 seed codes == host == ETCH  24/24
+
+12 checks, 0 failures

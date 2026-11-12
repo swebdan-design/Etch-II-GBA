@@ -15,6 +15,7 @@ CC      := $(PREFIX)gcc
 OBJCOPY := $(PREFIX)objcopy
 PYTHON  ?= python3
 HOSTCC  ?= cc
+GBDK_HOME ?= /opt/gbdk
 
 # Mixer: samples per video frame (must divide 280 896 cycles) and samples
 # per control block.  264/24 -> 15 768 Hz (release), 304/16 -> 18 157 Hz,
@@ -103,15 +104,16 @@ $(BUILD)/mgba_harness: tests/harness/mgba_harness.c
 hosttest:
 	$(PYTHON) tests/run_host_tests.py
 
-compat: harness
-	$(PYTHON) tests/compat/run_compat.py
+ETCH_REPO ?= ../swebdan-design/etch---gb
+compat: harness rom $(BUILD)/gbafix
+	GBDK_HOME=$(GBDK_HOME) $(PYTHON) tests/compat/run_compat.py $(ETCH_REPO)
 
 emutest: rom harness
 	$(PYTHON) tests/emu_test.py $(BUILD)/$(ROMNAME).gba
 
 test: hosttest compat emutest
 
-release: rom
+release: rom harness
 	$(PYTHON) tools/make_release.py
 
 clean:

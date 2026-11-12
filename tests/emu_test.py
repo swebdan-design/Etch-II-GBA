@@ -37,6 +37,23 @@ XPSZ = 152
 G = dict(key=0, scale=1, style=2, density=3, sync=4, accent=5, slide=6, octave=7, mutation=8, mode=9, seed=10)
 TRK = dict(BASS=0, LEAD=1, CHORD=2, DRONE=3, KICK=4, PERC=5, HATS=6, TEXTURE=7)
 FPS = 16777216 / 280896.0
+GEN_ONE_C = r"""
+#include <stdio.h>
+#include "corrosion.h"
+int main(int argc, char **argv) {
+    gen_t g; pattern_t p; int i;
+    memset(&g, 0, sizeof g);
+    if (argc < 2 || !corr_code_decode(&g, argv[1])) return 1;
+    pattern_clear(&p); corr_generate(&p, &g, GEN_ALL);
+    for (i = 0; i < 16; i++) printf("%02X", p.note[i]);
+    for (i = 0; i < 16; i++) printf("%02X", p.flags[i]);
+    for (i = 0; i < 16; i++) printf("%02X", p.prob[i]);
+    for (i = 0; i < 4; i++) printf("%04X", p.drum[i]);
+    for (i = 0; i < 4; i++) printf("%02X", p.kit[i]);
+    printf("%02X\n", p.style);
+    return 0;
+}
+"""
 
 
 def rec(name, ok, detail=""):
@@ -216,6 +233,13 @@ def main():
     recipe = open(os.path.join(ROOT, "docs", "generated_album_recipe.txt")).read()
     codes = [l.split()[2].replace("-", "") for l in recipe.splitlines() if l.strip()[:2].rstrip(".").isdigit() and len(l.split()) == 3]
     gen1 = os.path.join(ROOT, "build", "compat", "gen_one")
+    if not os.path.exists(gen1):
+        # reference generator: CORROSION (legacy copy, identical to ETCH's) on the host
+        L = os.path.join(ROOT, "src", "corrosion", "legacy")
+        src = os.path.join(ROOT, "build", "compat", "gen_one.c")
+        os.makedirs(os.path.dirname(src), exist_ok=True)
+        open(src, "w").write(GEN_ONE_C)
+        subprocess.run(["gcc", "-std=c99", "-I" + L, "-o", gen1, src] + [os.path.join(L, f) for f in ("corrosion.c", "pattern.c", "names.c")], check=True)
     e = E2()
     e.boot()
     lines_tot = ov0 = 0
