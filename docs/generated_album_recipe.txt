@@ -47,6 +47,7 @@ Core patterns: ORIGINAL CORROSION. Extension tracks: ETCH II EXPANSION or hand-w
   P04 ext : EXPANSION generator xseed DEB2 variant 3 tracks DRONE TEXTURE
   hand edit: TEXTURE length 7 in P01, LEAD length 12 in P02 (polymeter)
   SONG: P01 x4 P02 x4 P03 x4 P04 x2 P01 x4 P03 x4 (loops)
+  arrangement: DRONE layer removed (the chord layer carries the harmony; keeps the piece inside the CPU budget)
 
 == 5. STATIC ==
   P01 core: CORROSION GENERATE from code 5A71-201A-6751 (the core groove)
@@ -64,6 +65,7 @@ Core patterns: ORIGINAL CORROSION. Extension tracks: ETCH II EXPANSION or hand-w
   P04 core: CORROSION GENERATE from code 5A72-2016-6751 (interlude: density 6)
   P04 ext : EXPANSION generator xseed 57A7 variant 3 tracks CHORD DRONE TEXTURE
   SONG: P01 x4 P02 x4 P01 x4 P03 x4 P04 x4 P02 x4 (loops)
+  arrangement: DRONE layer removed (the chord layer carries the harmony; keeps the piece inside the CPU budget)
 
 == 6. PATINA ==
   P01 core: CORROSION GENERATE from code 9A71-A256-3361 (the core groove)
@@ -99,6 +101,7 @@ Core patterns: ORIGINAL CORROSION. Extension tracks: ETCH II EXPANSION or hand-w
   P03 core: CORROSION GENERATE from code 2E78-0023-4441 (coda: density 3)
   P03 ext : EXPANSION generator xseed 2E77 variant 2 tracks CHORD DRONE 
   SONG: P01 x4 P02 x4 P01 x4 P02 x4 P03 x4 (loops)
+  arrangement: DRONE layer removed (the chord layer carries the harmony; keeps the piece inside the CPU budget)
 
 Legacy seed codes (core groove = pattern 01 on ETCH I):
   1. OXIDE     0A51-430B-6B90

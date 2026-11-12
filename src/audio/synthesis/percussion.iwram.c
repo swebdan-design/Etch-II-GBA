@@ -192,20 +192,27 @@ static int dsynth_block(dsynth_t *d, int32_t *tmp)
     return 1;
 }
 
-/* ---- render cache ---------------------------------------------------------- */
-static const uint16_t cache_max[NUM_LANES] = { 9216, 8192, 4608, 14336 };   /* samples (~0.5/0.45/0.25/0.8 s) */
-static int8_t cache_mem[2 * (9216 + 8192 + 4608 + 14336)] EWRAM_BSS;
+/* ---- render cache ----------------------------------------------------------
+ * Three entries per lane, least-recently-used replacement: a lane can keep
+ * two kits ready (patterns often alternate kits) while a third is rendered.
+ * An entry is invalidated (key = 0) before it is overwritten and published
+ * (key set) only when complete, so the audio IRQ never plays a partial
+ * render.  An entry that a sounding voice is reading is never chosen. */
+#define CACHE_N 3
+static const uint16_t cache_max[NUM_LANES] = { 9216, 8192, 4608, 14336 };   /* samples (~0.6/0.5/0.3/0.9 s) */
+static int8_t cache_mem[CACHE_N * (9216 + 8192 + 4608 + 14336)] EWRAM_BSS;
 static int16_t render_scratch[14336] EWRAM_BSS;
 typedef struct {
-    int8_t *buf[2];
-    uint16_t len[2];
-    int32_t scale[2];
-    uint32_t key[2];
-    uint8_t kit[2];
-    volatile uint8_t front;
+    int8_t *buf[CACHE_N];
+    uint16_t len[CACHE_N];
+    int32_t scale[CACHE_N];
+    volatile uint32_t key[CACHE_N];
+    uint8_t kit[CACHE_N];
+    uint32_t used[CACHE_N];
 } dcache_t;
 static dcache_t cache[NUM_LANES];
 static volatile uint32_t want_key[NUM_LANES][4];
+static uint32_t use_clock;
 volatile uint16_t drum_cache_renders, drum_rt_hits;
 
 static uint32_t drum_key(uint8_t lane, uint8_t kit)
@@ -223,22 +230,28 @@ static uint32_t drum_key(uint8_t lane, uint8_t kit)
 static void cache_init(void)
 {
     int8_t *m = cache_mem;
-    uint8_t l;
-    for (l = 0; l < NUM_LANES; l++) {
-        cache[l].buf[0] = m; m += cache_max[l];
-        cache[l].buf[1] = m; m += cache_max[l];
-        cache[l].key[0] = cache[l].key[1] = 0;
-        cache[l].front = 0;
-    }
+    uint8_t l, k;
+    for (l = 0; l < NUM_LANES; l++)
+        for (k = 0; k < CACHE_N; k++) {
+            cache[l].buf[k] = m; m += cache_max[l];
+            cache[l].key[k] = 0; cache[l].used[k] = 0;
+        }
 }
 
 /* background renderer state (main loop) */
 static struct {
-    uint8_t busy, lane, kit, back;
+    uint8_t busy, lane, kit, slot;
     uint32_t key, pos;
     int32_t peak;
     dsynth_t syn;
 } rj;
+
+static int cache_find(uint8_t l, uint32_t key)
+{
+    int k;
+    for (k = 0; k < CACHE_N; k++) if (cache[l].key[k] == key) return k;
+    return -1;
+}
 
 /* Called once per main-loop pass: refresh the wanted keys, then advance the
  * render job by a bounded amount of work (~48 blocks). */
@@ -255,12 +268,17 @@ void drum_cache_service(void)
         for (pi = 0; pi < 2 && !rj.busy; pi++)
             for (l = 0; l < NUM_LANES && !rj.busy; l++) {
                 dcache_t *c = &cache[l];
-                uint8_t kit = proj.pat[pats[pi]].kit[l] & 3, back = (uint8_t)(c->front ^ 1);
-                uint32_t key = want_key[l][kit];
-                if (c->key[c->front] == key) continue;
-                /* never overwrite a buffer a sounding voice still reads */
-                if (dvoices[l].active && dvoices[l].cached && dvoices[l].buf == c->buf[back]) continue;
-                rj.busy = 1; rj.lane = l; rj.kit = kit; rj.back = back; rj.key = key; rj.pos = 0; rj.peak = 1;
+                uint8_t kit = proj.pat[pats[pi]].kit[l] & 3;
+                uint32_t key = want_key[l][kit], oldest = 0xFFFFFFFFu;
+                int victim = -1;
+                if (cache_find(l, key) >= 0) continue;
+                for (k = 0; k < CACHE_N; k++) {
+                    if (dvoices[l].active && dvoices[l].cached && dvoices[l].buf == c->buf[k]) continue;
+                    if (c->used[k] < oldest) { oldest = c->used[k]; victim = k; }
+                }
+                if (victim < 0) continue;
+                c->key[victim] = 0;                             /* invalid while rewritten */
+                rj.busy = 1; rj.lane = l; rj.kit = kit; rj.slot = (uint8_t)victim; rj.key = key; rj.pos = 0; rj.peak = 1;
                 rj.syn.rng = 0x2545F491u ^ key;
                 dsynth_setup(&rj.syn, l, kit, evo_tune_ofs[l]);
             }
@@ -277,20 +295,36 @@ void drum_cache_service(void)
             }
             rj.pos += MIX_BLOCK;
         } else {
-            /* finished: normalise into the back buffer, then publish */
+            /* finished: normalise into the slot, then publish */
             dcache_t *c = &cache[rj.lane];
-            int8_t *dst = c->buf[rj.back];
+            int8_t *dst = c->buf[rj.slot];
             int32_t sh = 0, i;
             while ((rj.peak >> sh) > 127) sh++;
             for (i = 0; i < (int32_t)rj.pos; i++) dst[i] = (int8_t)(render_scratch[i] >> sh);
-            c->len[rj.back] = (uint16_t)rj.pos;
-            c->scale[rj.back] = 1 << sh;
-            c->key[rj.back] = rj.key;
-            c->kit[rj.back] = rj.kit;
-            c->front = rj.back;
+            c->len[rj.slot] = (uint16_t)rj.pos;
+            c->scale[rj.slot] = 1 << sh;
+            c->kit[rj.slot] = rj.kit;
+            c->used[rj.slot] = ++use_clock;
+            c->key[rj.slot] = rj.key;                           /* publish last */
             drum_cache_renders++;
             rj.busy = 0;
         }
+    }
+}
+
+/* Render every kit the start pattern uses before playback begins (called
+ * on project load, with playback stopped), so no hit needs live synthesis. */
+void drum_cache_prime(void) IWRAM_CODE;
+void drum_cache_prime(void)
+{
+    uint32_t guard;
+    for (guard = 0; guard < 4000; guard++) {
+        uint8_t l, missing = 0;
+        drum_cache_service();
+        if (rj.busy) continue;
+        for (l = 0; l < NUM_LANES; l++)
+            if (cache_find(l, want_key[l][proj.pat[seq_cur].kit[l] & 3]) < 0) missing = 1;
+        if (!missing) break;
     }
 }
 
@@ -307,20 +341,25 @@ void drum_trigger(uint8_t lane, uint8_t kit, uint8_t accent)
 {
     drumvoice_t *d = &dvoices[lane & 3];
     dcache_t *c = &cache[lane & 3];
-    uint8_t f = c->front;
+    int k = cache_find(lane & 3, want_key[lane & 3][kit & 3]);
     (void)accent;
+    if (k < 0) {
+        /* a render of this kit is played even if a parameter has just moved
+         * (the fresh render follows within a few frames) */
+        int j;
+        for (j = 0; j < CACHE_N; j++) if (c->key[j] && c->kit[j] == (kit & 3)) { k = j; break; }
+    }
     d->lane = lane;
     d->active = 1;
-    /* a render of this kit is played even if a parameter has just moved
-     * (the fresh render follows within a few frames) */
-    if (c->key[f] && (c->key[f] == want_key[lane][kit & 3] || c->kit[f] == (kit & 3))) {
+    if (k >= 0) {
         d->cached = 1;
-        d->buf = c->buf[f];
-        d->len = c->len[f];
-        d->scale = c->scale[f];
+        d->buf = c->buf[k];
+        d->len = c->len[k];
+        d->scale = c->scale[k];
         d->pos = 0;
+        c->used[k] = ++use_clock;
     } else {
-        /* no fresh render yet (just edited / new kit): synthesise live */
+        /* no render of this kit yet: synthesise live */
         d->cached = 0;
         dsynth_setup(&d->rt, lane, kit, evo_tune_ofs[lane]);
         drum_rt_hits++;

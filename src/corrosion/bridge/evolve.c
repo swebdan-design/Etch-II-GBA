@@ -281,4 +281,5 @@ void app_project_loaded(void)
     evo_cut_ofs = 0;
     { uint8_t l; for (l = 0; l < NUM_LANES; l++) evo_tune_ofs[l] = 0; }
     seq_set_tempo();
+    drum_cache_prime();
 }

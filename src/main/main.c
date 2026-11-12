@@ -24,7 +24,13 @@ volatile uint32_t frame_count;
 volatile uint16_t main_worst;              /* longest main-loop pass, frames */
 char *fake_heap_end, *fake_heap_start;     /* referenced by devkitPro's crt0 */
 static uint8_t last_commits;
-volatile uint8_t probe_album;              /* test hook: 1..8 loads that album piece */
+/* test hooks (tests/emu_test.py): each runs the same app path a user action does */
+volatile uint8_t probe_album;              /* 1..8: load that album piece          */
+volatile uint8_t probe_tempo;              /* 1: apply bpm/swing/gate              */
+volatile uint8_t probe_paste;              /* n+1: paste probe_pat into pattern n  */
+volatile uint8_t probe_save, probe_load;   /* n+1: save / load slot n              */
+volatile uint8_t probe_result;
+pattern_t probe_pat EWRAM_BSS;
 
 void irq_entry(void);
 void irq_dispatch(uint32_t flags) IWRAM_CODE;
@@ -171,6 +177,24 @@ int main(void)
         vblank_wait_bios();
         f0 = frame_count;
         if (probe_album) { app_load_album((uint8_t)(probe_album - 1)); probe_album = 0; }
+        if (probe_tempo) { seq_set_tempo(); probe_tempo = 0; }
+        if (probe_paste) {
+            uint8_t n = (uint8_t)(probe_paste - 1);
+            seq_backup_for_undo(n);
+            CRITICAL { proj.pat[n] = probe_pat; }
+            app_pattern_edited(n);
+            probe_paste = 0;
+        }
+        if (probe_save) { probe_result = storage_save((uint8_t)(probe_save - 1)); probe_save = 0; }
+        if (probe_load) {
+            uint8_t was = seq_playing;
+            seq_stop();
+            CRITICAL { audio_all_off(); }
+            probe_result = storage_load((uint8_t)(probe_load - 1));
+            if (probe_result) app_project_loaded();
+            if (was) seq_start();
+            probe_load = 0;
+        }
         ui_input();
         global_keys();
         if (app_need_redraw) {

@@ -27,16 +27,24 @@ __attribute__((used, aligned(4))) const char save_type_id[12] = "SRAM_V113";
 
 static project2_t snap EWRAM_BSS;
 static uint32_t seq_no;
+static uint32_t crc_tab[256] EWRAM_BSS;
+
+/* CRC-32 (IEEE, as zlib), table driven */
+static void crc_init(void)
+{
+    uint32_t i, c;
+    uint8_t k;
+    for (i = 0; i < 256; i++) {
+        for (c = i, k = 0; k < 8; k++) c = (c >> 1) ^ (0xEDB88320u & (0u - (c & 1)));
+        crc_tab[i] = c;
+    }
+}
 
 uint32_t crc32_buf(const uint8_t *p, uint32_t n, uint32_t crc)
 {
     uint32_t i;
-    uint8_t k;
     crc = ~crc;
-    for (i = 0; i < n; i++) {
-        crc ^= p[i];
-        for (k = 0; k < 8; k++) crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1)));
-    }
+    for (i = 0; i < n; i++) crc = crc_tab[(crc ^ p[i]) & 255] ^ (crc >> 8);
     return ~crc;
 }
 
@@ -59,11 +67,7 @@ static void wr32(volatile uint8_t *b, uint32_t v) { b[0] = (uint8_t)v; b[1] = (u
 static uint32_t sram_crc(volatile uint8_t *b, uint32_t n)
 {
     uint32_t crc = 0xFFFFFFFFu, i;
-    uint8_t k;
-    for (i = 0; i < n; i++) {
-        crc ^= b[i];
-        for (k = 0; k < 8; k++) crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1)));
-    }
+    for (i = 0; i < n; i++) crc = crc_tab[(crc ^ b[i]) & 255] ^ (crc >> 8);
     return ~crc;
 }
 
@@ -82,6 +86,7 @@ void storage_init(void)
 {
     uint8_t s;
     (void)*(volatile const char *)save_type_id;     /* keep the marker in the ROM */
+    crc_init();
     seq_no = 0;
     for (s = 0; s < SAVE_SLOTS; s++)
         if (check(s) == SLOT_OK && rd32(base(s) + 22) > seq_no) seq_no = rd32(base(s) + 22);

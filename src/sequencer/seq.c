@@ -39,7 +39,7 @@ pattern_t evo_cand, evo_undo;
 volatile uint8_t pat_epoch[E2_PATTERNS];
 
 static uint32_t pphase, pinc, swing_pt, gate_even, gate_odd;
-static uint8_t gate_done, next_plays, cur_plays, legato, pending_start;
+static uint8_t gate_done, next_plays, cur_plays, legato, pending_start, last_region;
 static uint32_t live_rng = 0x5EED;         /* ETCH's live dice (16-bit xorshift) */
 static uint32_t xlive_rng = 0xC0FFEE;      /* extension-track dice (separate)   */
 
@@ -398,9 +398,22 @@ void seq_block(void)
     if (pending_start) { step_advance(); voice_govern(0); return; }
     old = pphase;
     pphase += pinc;
-    if (pphase < old) { step_advance(); voice_govern(0); }                /* even 16th */
-    else if (old < swing_pt && pphase >= swing_pt) { step_advance(); voice_govern(0); }   /* odd 16th */
-    else if (!gate_done && pphase >= ((seq_step & 1) ? gate_odd : gate_even)) gate_point();
+    /* Steps fire on transitions between the two halves of the pair: the wrap
+     * starts an even 16th, entering [swing point, end) an odd one -- and only
+     * when the next step has that parity.  ETCH fired the odd step whenever
+     * the phase crossed the swing point; if SWING was raised while the phase
+     * sat between the old and new swing points, the odd step fired twice and
+     * step parity fell out of step with the phase, so every other gate point
+     * was never reached (found by tests/emu_test.py, 220 BPM, swing 8). */
+    {
+        uint8_t region = pphase >= swing_pt, next_odd = (uint8_t)((seq_step + 1) & 1);
+        uint8_t fire = 0;
+        if (pphase < old) fire = !next_odd;                               /* even 16th */
+        else if (!last_region && region) fire = next_odd;                 /* odd 16th  */
+        last_region = region;
+        if (fire) { step_advance(); voice_govern(0); return; }
+    }
+    if (!gate_done && pphase >= ((seq_step & 1) ? gate_odd : gate_even)) gate_point();
 }
 
 /* Tempo, swing, gate: ETCH's formulas with 32-bit phases.
@@ -442,6 +455,7 @@ void seq_start(void)
         seq_loop = 0;
         seq_phrase = 0;
         pphase = 0;
+        last_region = 0;
         seq_chain_bar = 0;
         if (proj.song.song) {
             if (proj.song.pat[seq_chain_pos] >= E2_PATTERNS) seq_chain_pos = 0;

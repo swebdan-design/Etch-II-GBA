@@ -89,7 +89,8 @@ typedef struct {
 /* render cache: each ORIGINAL drum lane keeps its current hit synthesised
  * into RAM (double buffered); see src/audio/synthesis/percussion.iwram.c */
 void drum_cache_service(void) IWRAM_CODE;
-void drums_init(void) IWRAM_CODE;     /* main loop: keep renders fresh */
+void drums_init(void) IWRAM_CODE;
+void drum_cache_prime(void) IWRAM_CODE;    /* project load: render the start pattern's kits */     /* main loop: keep renders fresh */
 extern volatile uint16_t drum_cache_renders, drum_rt_hits, voices_stolen;
 
 extern voice_t voices[N_MELODIC];

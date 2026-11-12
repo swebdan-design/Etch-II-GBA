@@ -184,31 +184,31 @@ void voice_step_tick(void)
 /* ---- CPU governor -----------------------------------------------------------
  * Audio continuity comes first.  If the previous frame used more than ~85 %
  * of the frame (or overran), free the least important sounding voice:
- * releasing tails first (quietest first), then TEXTURE, CHORD (top voice
- * first), DRONE, LEAD.  BASS and the drum lanes are never stolen.  The voice
+ * releasing tails first (quietest first), then TEXTURE, DRONE, CHORD, LEAD.  BASS and the drum lanes are never stolen.  The voice
  * fades over one block, so stealing is a soft cut, never a click. */
-volatile uint16_t voices_stolen;
+volatile uint16_t voices_stolen, voices_stolen_sounding;
+volatile uint16_t steals_by_track[TRK_COUNT];   /* all / notes still held or attacking */
 volatile uint8_t fx_send_active;           /* set when any voice feeds the delay this block */
 volatile uint32_t vprof[7], vcount[5];
 uint32_t vframe[N_MELODIC], vframe_eng[N_MELODIC];
 uint32_t vlast[N_MELODIC];                    /* measured cycles of each voice in the last frame */
 uint32_t drums_last, fixed_last;              /* measured, last frame */   /* profiling: control, engines x5, mix-out */
 static inline uint32_t cyc(void) { return ((uint32_t)REG_TM3CNT_L << 16) | REG_TM2CNT_L; }
-static const uint8_t steal_rank[TRK_COUNT] = { 0xFF, 4, 2, 3, 0xFF, 0xFF, 0xFF, 1 };
+static const uint8_t steal_rank[TRK_COUNT] = { 0xFF, 4, 3, 2, 0xFF, 0xFF, 0xFF, 1 };   /* TEXTURE, DRONE, CHORD, LEAD */
 
 /* measured cost per frame at 264 samples (mGBA, cycles): control + mix-out
- * ~15.3k per voice, plus synthesis: SUB 23.6k (BASS 2x filter ~30k), FM
- * 11.9k, WT 17.3k, PD 17.0k, RES 20.7k; paraphonic chord oscillators add
- * ~5k (SUB/WT) or a full render each (FM/PD). */
+ * ~15.3k per voice, plus synthesis: SUB 24.5k (BASS, 2x filter, +2k), FM
+ * 12k, WT 17.3k, PD 17k, RES 26k (excitation frames); a paraphonic chord adds
+ * ~12k (SUB/WT) or two more full renders + 14k (FM/PD). */
 #define SCALE(c) ((uint32_t)(c) * MIX_SPF / 264u)
-static const uint32_t eng_cost[ENG_COUNT] = { SCALE(23600), SCALE(11900), SCALE(17300), SCALE(17000), SCALE(20700) };
+static const uint32_t eng_cost[ENG_COUNT] = { SCALE(24500), SCALE(12000), SCALE(17300), SCALE(17000), SCALE(26000) };
 
 uint32_t voice_cost(const voice_t *v) IWRAM_CODE;
 uint32_t voice_cost(const voice_t *v)
 {
     uint32_t c = SCALE(15300) + eng_cost[v->engine % ENG_COUNT];
-    if (v->track == TRK_BASS && v->engine == ENG_SUB) c += SCALE(7000);
-    if (v->nosc == 3) c += (v->engine == ENG_FM || v->engine == ENG_PD) ? 2 * eng_cost[v->engine] + SCALE(14000) : SCALE(6000);
+    if (v->track == TRK_BASS && v->engine == ENG_SUB && v->shape) c += SCALE(2000);
+    if (v->nosc == 3) c += (v->engine == ENG_FM || v->engine == ENG_PD) ? 2 * eng_cost[v->engine] + SCALE(14000) : SCALE(12000);
     return c;
 }
 
@@ -224,6 +224,7 @@ static int steal_one(void)
         if (sc < bscore) { bscore = sc; best = (int)i; }
     }
     if (best < 0) return -1;
+    if (voices[best].stage != 3) { voices_stolen_sounding++; steals_by_track[voices[best].track]++; }
     voices[best].active = 0;
     voices[best].stage = 0;
     voices[best].held = 0;
@@ -239,14 +240,14 @@ volatile uint32_t gov_estimate;
 void voice_govern(uint16_t lines) IWRAM_CODE;
 void voice_govern(uint16_t lines)
 {
-    const uint32_t budget = 280896u * 82u / 100u;
+    const uint32_t budget = 280896u * 80u / 100u;
     uint32_t dc = drums_cost(), i, c;
     uint32_t est = (fixed_last > SCALE(34000) ? fixed_last : SCALE(34000)) + SCALE(6000);
-    est += drums_last > dc ? drums_last : dc;
+    est += drums_last > dc ? drums_last : dc;          /* includes hits started this frame */
     for (i = 0; i < N_MELODIC; i++)
         if (voices[i].active || voices[i].g1) {
             c = voice_cost(&voices[i]);
-            est += vlast[i] > c ? vlast[i] : c;              /* self-calibrating */
+            est += vlast[i] > c ? vlast[i] : c;              /* measured or modelled, whichever is larger */
         }
     gov_estimate = est;
     while (est > budget) {
@@ -296,6 +297,8 @@ static __attribute__((noinline)) void voice_control(voice_t *v)
         break;
     case 2:
         if (v->amp > v->sus) v->amp = v->sus + (int32_t)(((int64_t)(v->amp - v->sus) * v->dec_k) >> 16);
+        /* zero sustain and decayed below -48 dB: silent even if held, free it */
+        if (v->sus == 0 && v->amp < (1 << 16) && v->engine != ENG_RES) { v->amp = 0; v->stage = 0; v->active = 0; }
         break;
     case 3:
         v->amp = (int32_t)(((int64_t)v->amp * v->rel_k) >> 16);
@@ -328,7 +331,7 @@ static __attribute__((noinline)) void voice_control(voice_t *v)
         int32_t ci = 4 * 22 + ((tone * 420) >> 10);           /* quarter-semitone index */
         ci += ((p >> 6) - 48) * 2;                             /* 50 % keyboard tracking */
         ci = clamp(ci, 0, 4 * 136 - 1);
-        v->shape = v->track == TRK_BASS;                       /* 2x oversampled filter on BASS */
+        v->shape = v->track == TRK_BASS && pt->p[P_C] >= 6;  /* 2x oversampled filter: resonant BASS */
         v->f = v->shape ? tab_svf_f[ci] : tab_svf1_f[ci];
         v->q = 46000 - pt->p[P_C] * 2900;                      /* Q15 damping 1.4 .. 0.08 */
         v->inc[0] = inc;
@@ -657,7 +660,7 @@ static __attribute__((noinline)) void render_res(voice_t *v, int32_t *out)
             else if (shape == 2) nz >>= 3;                              /* BOWED */
             else if (shape == 3) nz = (nz * (left & 3)) >> 1;           /* GRAIN */
             ex += ((nz - ex) * kf) >> 15;
-            y += ex;
+            y += ex << 1;
         }
         y = sat(y, 32000);
         dl[pos & (DL_LEN - 1)] = (int16_t)y;
