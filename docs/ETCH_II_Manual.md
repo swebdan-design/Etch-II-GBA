@@ -177,7 +177,7 @@ Mute tracks on LIVE (A on a name). SELECT+A to evolve on the next bar, SELECT+B 
 | | |
 |---|---|
 | Platform | Nintendo Game Boy Advance (GBA, GBA SP, Game Boy Micro, flash cartridges, emulators) |
-| ROM | 229 KB, native `.gba`, save type SRAM 32 KB |
+| ROM | 256 KB, native `.gba`, save type SRAM 32 KB |
 | Audio | Direct Sound A (left) + B (right), 8-bit, **15 768 Hz**, locked to the video frame (264 samples per frame) |
 | Voices | 5 melodic (BASS, LEAD, CHORD ×3 paraphonic, DRONE, TEXTURE) + 4 drum lanes; a CPU governor frees the least important voice before the CPU could overload |
 | Timing | sample-clock sequencer, 1.5 ms resolution, no tempo drift (measured 1 584 vs 1 583.9 steps over 3 minutes) |

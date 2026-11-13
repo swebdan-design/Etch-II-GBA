@@ -1,13 +1,13 @@
-PASS  ROM header: logo, fixed byte, complement checksum, SRAM_V marker  b83fd9fd0f2b15ae
-PASS  ROM size  229972 bytes
+PASS  ROM header: logo, fixed byte, complement checksum, SRAM_V marker  a7a955bc006fbb9f
+PASS  ROM size  262144 bytes
 PASS  title: 'A Generative Synthesis Machine'  
 PASS  title: 'by Synth Centric'  
 PASS  title: PRESS START blinks  
 PASS  START on the title starts playback in LIVE  ETCH II #LIVE    P01 132 DX 2#
-PASS  audio output during playback  rms 19101
+PASS  audio output during playback  rms 19149
 PASS  no dropouts (longest digital silence < 40 ms)  0.0 ms
-PASS  no hard clipping (< 0.5 % of samples at full scale)  0.2360 %
-PASS  stereo (L and R differ)  side rms 1505
+PASS  no hard clipping (< 0.5 % of samples at full scale)  0.2352 %
+PASS  stereo (L and R differ)  side rms 1375
 PASS  R walks LIVE>TRACK>SYNTH>MOD>GEN>MEMORY>SONG>FILE and wraps  
 PASS  L goes back (LIVE < FILE)  
 PASS  SELECT+RIGHT also changes screen (ETCH shortcut)  
@@ -15,33 +15,33 @@ PASS  playback continued through screen changes
 PASS  tempo 124 BPM swing 0: steps in 20 s  166 vs 166.1 expected
 PASS  gate timing 124 BPM swing 0: a gate point inside every step  166 steps, 166 gates, 0 late
 PASS  tempo 220 BPM swing 8: steps in 20 s  295 vs 294.7 expected
-PASS  gate timing 220 BPM swing 8: a gate point inside every step  295 steps, 294 gates, 0 late
-PASS  tempo 60 BPM swing 0: steps in 20 s  80 vs 80.4 expected
-PASS  gate timing 60 BPM swing 0: a gate point inside every step  80 steps, 81 gates, 0 late
+PASS  gate timing 220 BPM swing 8: a gate point inside every step  295 steps, 295 gates, 0 late
+PASS  tempo 60 BPM swing 0: steps in 20 s  81 vs 80.4 expected
+PASS  gate timing 60 BPM swing 0: a gate point inside every step  81 steps, 80 gates, 0 late
 PASS  album 1 OXIDE: pattern 01 == CORROSION(0A51430B6B90) (ETCH I core)  
 PASS  album 1 OXIDE: starts in DRIFT, EXPANDED  
-PASS  album 1 OXIDE: plays 25 s, sound, no underruns  rms 18857, underruns 0, longest silence 0 ms
+PASS  album 1 OXIDE: plays 25 s, sound, no underruns  rms 18952, underruns 0, longest silence 0 ms
 PASS  album 2 FERRIC: pattern 01 == CORROSION(FE2610497940) (ETCH I core)  
 PASS  album 2 FERRIC: starts in DRIFT, EXPANDED  
-PASS  album 2 FERRIC: plays 25 s, sound, no underruns  rms 11357, underruns 0, longest silence 0 ms
+PASS  album 2 FERRIC: plays 25 s, sound, no underruns  rms 11210, underruns 0, longest silence 0 ms
 PASS  album 3 VESSEL: pattern 01 == CORROSION(7E5552275630) (ETCH I core)  
 PASS  album 3 VESSEL: starts in DRIFT, EXPANDED  
-PASS  album 3 VESSEL: plays 25 s, sound, no underruns  rms 12457, underruns 0, longest silence 0 ms
+PASS  album 3 VESSEL: plays 25 s, sound, no underruns  rms 12690, underruns 0, longest silence 0 ms
 PASS  album 4 DEBRIS: pattern 01 == CORROSION(DEB5743AB961) (ETCH I core)  
 PASS  album 4 DEBRIS: starts in DRIFT, EXPANDED  
-PASS  album 4 DEBRIS: plays 25 s, sound, no underruns  rms 9143, underruns 0, longest silence 0 ms
+PASS  album 4 DEBRIS: plays 25 s, sound, no underruns  rms 9255, underruns 0, longest silence 0 ms
 PASS  album 5 STATIC: pattern 01 == CORROSION(5A71201A6751) (ETCH I core)  
 PASS  album 5 STATIC: starts in DRIFT, EXPANDED  
-PASS  album 5 STATIC: plays 25 s, sound, no underruns  rms 11678, underruns 0, longest silence 0 ms
+PASS  album 5 STATIC: plays 25 s, sound, no underruns  rms 11452, underruns 0, longest silence 0 ms
 PASS  album 6 PATINA: pattern 01 == CORROSION(9A71A2563361) (ETCH I core)  
 PASS  album 6 PATINA: starts in DRIFT, EXPANDED  
-PASS  album 6 PATINA: plays 25 s, sound, no underruns  rms 5127, underruns 0, longest silence 0 ms
+PASS  album 6 PATINA: plays 25 s, sound, no underruns  rms 5342, underruns 0, longest silence 0 ms
 PASS  album 7 FRACTURE: pattern 01 == CORROSION(F7ACB33CDA50) (ETCH I core)  
 PASS  album 7 FRACTURE: starts in DRIFT, EXPANDED  
-PASS  album 7 FRACTURE: plays 25 s, sound, no underruns  rms 14761, underruns 0, longest silence 0 ms
+PASS  album 7 FRACTURE: plays 25 s, sound, no underruns  rms 14856, underruns 0, longest silence 0 ms
 PASS  album 8 REMNANT: pattern 01 == CORROSION(2E7700254441) (ETCH I core)  
 PASS  album 8 REMNANT: starts in DRIFT, EXPANDED  
-PASS  album 8 REMNANT: plays 25 s, sound, no underruns  rms 8786, underruns 0, longest silence 0 ms
+PASS  album 8 REMNANT: plays 25 s, sound, no underruns  rms 8834, underruns 0, longest silence 0 ms
 PASS  oscillator pitch: A2 (ETCH note 21) = 110 Hz  110.00 Hz
 PASS  oscillator pitch: A3 = 220 Hz  220.00 Hz
 PASS  engine SUB produces sound  rms 6369, centroid 2524 Hz
@@ -71,7 +71,7 @@ PASS  save survives an emulator restart (battery)
 PASS  corrupted slot is detected (CRC) and not loaded  
 PASS  FILE > SEED CODE import: legacy code -> CLASSIC + identical groove  
 PASS  CLASSIC: only the ORIGINAL bass (+ drums) sound; LEAD/CHORD/DRONE/TEXTURE silent  [1, 0, 0, 0, 0]
-PASS  10-minute OXIDE run in DRIFT/song mode: no underruns  avg audio CPU 58 %, max 95 %, commits 82, voices freed 951
-PASS  long run: no tempo drift  5280 steps vs 5279.9
+PASS  3-minute OXIDE run in DRIFT/song mode: no underruns  avg audio CPU 58 %, max 94 %, commits 24, voices freed 297
+PASS  long run: no tempo drift  1584 steps vs 1583.9
 
 75 checks, 0 failures

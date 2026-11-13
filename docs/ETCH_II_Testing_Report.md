@@ -8,7 +8,7 @@ Every result below was measured; raw logs are in `docs/test_logs/`. What could *
 
 | | |
 |---|---|
-| ROM tested | `ETCH_II_by_Synth_Centric.gba`, 229 972 bytes, SHA-256 `b83fd9fd0f2b15ae306cc87c089dcf55fe7b32ddf8792a5f7cbfe2974892e3c7` (a clean rebuild reproduces the same hash) |
+| ROM tested | `ETCH_II_by_Synth_Centric.gba`, 262 144 bytes (padded to 256 KB), SHA-256 `a7a955bc006fbb9f243f2b2a0751be2e0162fee09d59cb01ec1e65b15819fc97` (a clean rebuild reproduces the same hash) |
 | Toolchain | arm-none-eabi-gcc 13.2.1 (Ubuntu), newlib 4.4.0, devkitPro crt0 / linker script, gbafix 1.05 |
 | Emulator | **mGBA 0.10.2** (libmgba), driven headlessly by `tests/harness/mgba_harness.c` (frames, buttons, memory, single-step trace, audio capture, screenshots, file-backed SRAM) |
 | Reference | ETCH 2.5 source (commit `62ac4c6`), its release ROM, GBDK-2020 4.3.0 / SDCC 4.4.1 |

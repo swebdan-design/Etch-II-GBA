@@ -141,28 +141,49 @@ static void global_keys(void)
     }
 }
 
+/* Boot progress on screen: if start-up ever stops on real hardware, the
+ * last line shown names the stage (and its colour), instead of a white
+ * screen (the GBA shows white while the display is blanked). */
+static void boot_stage(uint8_t n, const char *what)
+{
+    static const uint16_t col[8] = { 0x0C63, 0x0C6B, 0x0D6B, 0x1D6B, 0x1D8B, 0x21AD, 0x25CF, 0x2A10 };
+    PAL_BG[0] = col[n & 7];
+    ui_text(0, 18, "STARTING", PAL_DIM);
+    ui_put(9, 18, (uint8_t)('0' + n), PAL_VALUE);
+    ui_textn(11, 18, what, 19, PAL_DIM);
+}
+
 int main(void)
 {
     REG_IME = 0;
-    REG_WAITCNT = 0x4317;                    /* SRAM 8, ROM 3/1, prefetch on */
     REG_DISPCNT = DCNT_BLANK;
+    REG_WAITCNT = 0x4317;                    /* SRAM 8, ROM 3/1, prefetch on */
+    REG_SOUNDBIAS = 0x0200;                  /* BIOS default; carts that skip the BIOS may not set it */
     ui_init();
+    REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;     /* display on before anything slow */
+    boot_stage(1, "MEMORY");
     evo_init();
     project_defaults(&proj);
+    boot_stage(2, "ALBUM");
     album_load(0, &proj);
+    boot_stage(3, "VOICES");
     voice_init_all();
     drums_init();
+    boot_stage(4, "MIXER");
     mixer_init();
     seq_init();
-    app_project_loaded();
-    storage_init();
-
+    boot_stage(5, "PERCUSSION");
+    app_project_loaded();                    /* renders the drum kits */
+    boot_stage(6, "INTERRUPTS");
     BIOS_IRQ_VECTOR = (uint32_t)irq_entry;
     REG_DISPSTAT = DSTAT_VBL_IRQ;
     REG_IE = IRQ_VBLANK;
     REG_IF = 0xFFFF;
     REG_IME = 1;
-    REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
+    vblank_wait_bios();                      /* proves the interrupt works */
+    boot_stage(7, "SAVE MEMORY");
+    storage_init();
+    PAL_BG[0] = gfx_palette[0];
 
     scr_title_run();                          /* returns when START is pressed */
 

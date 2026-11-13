@@ -1,6 +1,9 @@
 # ETCH II -- A Generative Synthesis Machine -- by Synth Centric
 # Reproducible build of the native Game Boy Advance ROM.
 #
+# Game code E2SC: deliberately outside the commercial code space, so flash
+# cartridges do not match it against their save-type / patch databases.
+#
 # Toolchain: devkitARM (set DEVKITARM) or any arm-none-eabi GCC with newlib
 # (Ubuntu: gcc-arm-none-eabi libnewlib-arm-none-eabi).  Python 3 + NumPy +
 # Pillow generate tables, graphics and the album data.  See
@@ -92,7 +95,7 @@ $(BUILD)/$(ROMNAME).elf: $(OBJS)
 
 $(BUILD)/$(ROMNAME).gba: $(BUILD)/$(ROMNAME).elf $(BUILD)/gbafix
 	$(OBJCOPY) -O binary $< $@
-	$(BUILD)/gbafix $@ -t"ETCH II" -cAE2E -mSC -r0
+	$(BUILD)/gbafix $@ -p -t"ETCH II" -cE2SC -mSC -r0
 	$(PYTHON) tools/check_rom.py $@
 
 # ---- tests ---------------------------------------------------------------
