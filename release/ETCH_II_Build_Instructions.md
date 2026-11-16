@@ -67,4 +67,4 @@ Builds the ROM, records audio previews from it in the emulator, renders the artw
 
 ## Running
 
-Any accurate GBA emulator (mGBA recommended) or a flash cartridge. Set the cartridge's save type to **SRAM** (32 KB) if it doesn't detect it from the ROM's `SRAM_V113` marker.
+Any accurate GBA emulator (mGBA recommended) or a flash cartridge. Set the cartridge's save type to **SRAM** (32 KB) if it doesn't detect it from the ROM's `SRAM_V113` marker. The ROM uses the default 4/2 ROM wait states, so slow flash carts (e.g. SuperCard) need no waitstate patch.

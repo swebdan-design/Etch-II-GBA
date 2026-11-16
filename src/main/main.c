@@ -157,7 +157,7 @@ int main(void)
 {
     REG_IME = 0;
     REG_DISPCNT = DCNT_BLANK;
-    REG_WAITCNT = 0x4317;                    /* SRAM 8, ROM 3/1, prefetch on */
+    REG_WAITCNT = 0x4003;                    /* SRAM 8, ROM 4/2 (safe on flash carts), prefetch */
     REG_SOUNDBIAS = 0x0200;                  /* BIOS default; carts that skip the BIOS may not set it */
     ui_init();
     REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;     /* display on before anything slow */

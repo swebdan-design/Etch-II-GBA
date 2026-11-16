@@ -8,7 +8,7 @@ Every result below was measured; raw logs are in `docs/test_logs/`. What could *
 
 | | |
 |---|---|
-| ROM tested | `ETCH_II_by_Synth_Centric.gba`, 262 144 bytes (padded to 256 KB), SHA-256 `a7a955bc006fbb9f243f2b2a0751be2e0162fee09d59cb01ec1e65b15819fc97` (a clean rebuild reproduces the same hash) |
+| ROM tested | `ETCH_II_by_Synth_Centric.gba`, 262 144 bytes (padded to 256 KB), SHA-256 `8f07071aa86de5fc31b6686278a8c79e48509a26b9182ae24b52562ff0370588` (a clean rebuild reproduces the same hash) |
 | Toolchain | arm-none-eabi-gcc 13.2.1 (Ubuntu), newlib 4.4.0, devkitPro crt0 / linker script, gbafix 1.05 |
 | Emulator | **mGBA 0.10.2** (libmgba), driven headlessly by `tests/harness/mgba_harness.c` (frames, buttons, memory, single-step trace, audio capture, screenshots, file-backed SRAM) |
 | Reference | ETCH 2.5 source (commit `62ac4c6`), its release ROM, GBDK-2020 4.3.0 / SDCC 4.4.1 |
@@ -114,7 +114,13 @@ Captured from the ROM in mGBA, analysed for problems:
 | 05_resonator_pluck | 12 | 19 475 | 0.43 % | 0 ms |
 | 06_percussion_16_kits | 28.7 | 15 892 | 0.21 % | 23.5 ms (between hits) |
 
-## 6. Not verified
+## 6. Hardware reports
+
+| Report | Cause | Fix |
+|---|---|---|
+| Game Boy Micro + flash cart: white screen; SuperCard: would not start without a SuperFW patch | The ROM set `WAITCNT = 0x4317` (ROM 3/1 wait states), the fastest timing commercial mask ROMs use; slower flash-cart memory (notably SuperCard) cannot keep up, so the CPU fetches corrupt instructions immediately after the write. SuperFW's patcher rewrites exactly such waitstate settings. | `WAITCNT = 0x4003` (ROM 4/2, prefetch on, SRAM 8). Measured cost: album average CPU unchanged (53–62 %), worst frame 97 %, 0 underruns. Also: game code changed from the commercial-style `AE2E` to `E2SC`, ROM padded to 256 KB, on-screen boot stages, SOUNDBIAS set explicitly. Confirmation on the user's carts is pending. |
+
+## 7. Not verified
 
 - **Physical hardware** (GBA, GBA SP, Game Boy Micro): DMA restart at the buffer wrap, interrupt latency, SRAM timing, actual audio quality through the GBA speaker and headphone amplifier, button feel.
 - **Flash cartridges**: save-type detection from the `SRAM_V113` marker and battery behaviour.

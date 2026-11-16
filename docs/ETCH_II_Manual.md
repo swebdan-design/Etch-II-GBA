@@ -193,6 +193,7 @@ Mute tracks on LIVE (A on a name). SELECT+A to evolve on the next bar, SELECT+B 
 | A layer comes and goes in a dense arrangement | The CPU governor freed a voice to keep the audio continuous. DIAGNOSTICS → VOICES FREED counts them. Use fewer simultaneous layers, shorter releases, or the cheaper engines (FM, PD) for pads. |
 | Extension tracks are silent | COMPAT is CLASSIC (header shows C). GEN → COMPAT → EXPANDED. |
 | Evolution never happens | MODE is STABLE, or the pattern is locked (LOCK PAT on GEN). |
+| White screen / does not start on a flash cart | Use this ROM as is: it runs the cartridge at the console's default ROM speed (4/2 wait states), which slow carts such as the SuperCard need. No SuperFW waitstate patch is required. If a cart still fails, note the `STARTING n` line shown at the bottom of the screen. |
 | SAVE FAILED | The cartridge has no working SRAM save. Flash carts need the save type set to SRAM (the ROM contains the standard `SRAM_V113` marker). |
 | A slot shows BAD | Its data failed the CRC check and is not loaded; save over it. |
 | A seed code is "INVALID" | Key must be 0–B, scale and style 0–5, octave 0–2. |
