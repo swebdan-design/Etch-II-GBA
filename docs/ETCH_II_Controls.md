@@ -2,16 +2,18 @@
 
 **ETCH II — A Generative Synthesis Machine** · by Synth Centric
 
+These controls follow the ETCH series spec (`docs/SERIES_SPEC.md`), so ETCH, ETCH II, ETCH DS and ETCH 3DS share them. **New in 2.0:** L and R no longer change screens (use SELECT + ←/→); hold R for a fill.
+
 ## Everywhere
 
 | Buttons | Action |
 |---|---|
 | **START** | Play / stop |
-| **L** / **R** | Previous / next screen (wraps: LIVE → TRACK → SYNTH → MOD → GEN → MEMORY → SONG → FILE → LIVE) |
-| **SELECT + ←/→** | Previous / next screen (ETCH's shortcut) |
+| **SELECT + ←/→** | Previous / next screen (wraps: LIVE → TRACK → SYNTH → MOD → GEN → MEMORY → SONG → FILE → LIVE) |
 | **SELECT + A** | Evolve now (at the next bar line while playing; immediately when stopped) |
 | **SELECT + B** | Undo: restore the previous generation of the pattern |
 | **SELECT + START** | Fill on / off (latched; a fresh fill variation every bar) |
+| hold **R** | Fill while held: on when pressed, off when released (a fill latched with SELECT + START or B stays on) |
 | **SELECT + ↑/↓** | Queue the next / previous pattern (switches song mode to loop mode) |
 | **B + L / B + R** (or SELECT + L / R) | Previous / next track (the selected track is shared by LIVE, TRACK, SYNTH and MOD) |
 

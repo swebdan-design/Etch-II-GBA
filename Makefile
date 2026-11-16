@@ -42,19 +42,27 @@ CRTN    := $(shell $(CC) $(ARCH) -mthumb -print-file-name=crtn.o)
 CRTB    := $(shell $(CC) $(ARCH) -mthumb -print-file-name=crtbegin.o)
 CRTE    := $(shell $(CC) $(ARCH) -mthumb -print-file-name=crtend.o)
 
-GENSRC  := $(GEN)/tables.c $(GEN)/gfx.c $(GEN)/album.c
+GENSRC  := $(GEN)/tables.c $(GEN)/gfx.c $(GEN)/album.c $(GEN)/font_ui.c
 SRCS    := $(sort $(wildcard src/*/*.c src/*/*/*.c src/*/*/*/*.c))
 ASMS    := $(sort $(wildcard src/*/*/*.s src/*/*/*.S))
 OBJS    := $(patsubst %.c,$(BUILD)/obj/%.o,$(SRCS) $(GENSRC)) $(patsubst %.s,$(BUILD)/obj/%.o,$(patsubst %.S,%.s,$(ASMS)))
 HDRS    := $(wildcard include/*.h src/corrosion/legacy/*.h) $(GEN)/tables.h $(GEN)/gfx.h
 
-.PHONY: all rom clean test hosttest compat emutest release pdf harness
+.PHONY: all rom speccheck clean test hosttest compat emutest release pdf harness
 all: rom
-rom: $(BUILD)/$(ROMNAME).gba
+rom: speccheck $(BUILD)/$(ROMNAME).gba
+
+# the series spec is shared by ETCH, ETCH II, ETCH DS and ETCH 3DS; ETCH DS holds the master
+speccheck:
+	@cd docs && sha256sum -c --quiet SERIES_SPEC.sha256 || (echo "docs/SERIES_SPEC.md differs from the series master (ETCH DS)"; exit 1)
 
 $(GEN)/tables.c $(GEN)/tables.h: tools/gen_tables.py
 	@mkdir -p $(GEN)
 	$(PYTHON) tools/gen_tables.py $(SPF) $(BLOCK) $(GEN)/tables.c $(GEN)/tables.h
+
+$(GEN)/font_ui.c: tools/gen_fonts.py
+	@mkdir -p $(GEN)
+	$(PYTHON) tools/gen_fonts.py $@
 
 $(GEN)/gfx.c $(GEN)/gfx.h: tools/gen_gfx.py
 	@mkdir -p $(GEN)

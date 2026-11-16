@@ -11,6 +11,7 @@
  *   actions       <> pick, A executes
  */
 #include "ui.h"
+#include "canvas.h"
 #include "seq.h"
 #include "evolve.h"
 #include "expand.h"
@@ -18,14 +19,14 @@
 enum { R_KEY, R_SCALE, R_STYLE, R_OCT, R_DENS, R_SYNC, R_ACC, R_SLIDE, R_MUT, R_MODE,
        R_SEED, R_CODE, R_COMPAT, R_XSEED, R_ACT1, R_ACT2, R_ACT3, N_ROWS };
 static const char *const lbl[R_XSEED + 1] = {
-    "KEY    ", "SCALE  ", "STYLE  ", "OCTAVE ", "DENSITY", "SYNCOP ", "ACCENT ", "SLIDE  ",
-    "MUTATE ", "MODE   ", "SEED   ", "CODE   ", "COMPAT ", "X-SEED "
+    "KEY", "SCALE", "STYLE", "OCTAVE", "DENSITY", "SYNCOP", "ACCENT", "SLIDE",
+    "MUTATE", "MODE", "SEED", "CODE", "COMPAT", "X-SEED"
 };
-static const char *const key_n[12] = { "C ", "C#", "D ", "D#", "E ", "F ", "F#", "G ", "G#", "A ", "A#", "B " };
+static const char *const key_n[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 static const char *const act_n[3][3] = {
-    { "GEN ALL ", "GEN BASS", "GEN DRUM" },
-    { "GROOVE  ", "EVOLVE  ", "UNDO    " },
-    { "LOCK BAS", "LOCK PAT", "GEN EXT " },
+    { "GEN ALL", "GEN BASS", "GEN DRUMS" },
+    { "GROOVE", "EVOLVE", "UNDO" },
+    { "LOCK BASS", "LOCK PATT", "GEN EXT" },
 };
 static const uint8_t gmax[R_MODE + 1] = { 11, SCALE_COUNT - 1, STYLE_COUNT - 1, 2, 15, 15, 15, 15, 15, EVO_COUNT - 1 };
 static uint8_t cur, col, digit, last_pat = 0xFF, last_commits;
@@ -46,47 +47,74 @@ static uint8_t *gptr(uint8_t r)
     }
 }
 
+/* layout: two columns of 7 rows, then a 3 x 3 grid of buttons */
+#define LIST_Y 38
+#define ROW_P  9
+#define COL_W  112
+#define BTN_Y  107
+
+static void row_xy(uint8_t r, int *x, int *y)
+{
+    *x = 6 + (r >= 7 ? COL_W + 6 : 0);
+    *y = LIST_Y + (r % 7) * ROW_P;
+}
+
+static void hex4(char *b, uint16_t v)
+{
+    static const char hx[] = "0123456789ABCDEF";
+    b[0] = hx[v >> 12]; b[1] = hx[(v >> 8) & 15]; b[2] = hx[(v >> 4) & 15]; b[3] = hx[v & 15]; b[4] = 0;
+}
+
 static void draw_row(uint8_t r)
 {
-    uint8_t y = (uint8_t)(2 + r);
     const pattern_t *p = &proj.pat[seq_cur];
-    if (r <= R_XSEED) {
-        ui_text(0, y, lbl[r], cur == r ? PAL_CURSOR : PAL_LABEL);
-        ui_put(7, y, ' ', PAL_TEXT);
+    char b[16];
+    int x, y, vx;
+    if (r >= R_ACT1) {
+        uint8_t i, a = (uint8_t)(r - R_ACT1);
+        for (i = 0; i < 3; i++) {
+            uint8_t on = (a == 2 && i == 0 && (p->lock & PLOCK_BASS)) || (a == 2 && i == 1 && (p->lock & PLOCK_ALL));
+            cv_button(6 + i * 77, BTN_Y + a * 15, 74, 12, act_n[a][i], cur == r && col == i, on);
+        }
+        return;
     }
+    row_xy(r, &x, &y);
+    vx = x + 32;
+    cv_rect(x - 4, y - 1, COL_W + 4, ROW_P, CV_BG);
+    cv_cap(x, y, cur == r, lbl[r]);
     switch (r) {
-    case R_KEY: ui_textn(8, y, key_n[proj.gen.key % 12], 12, PAL_VALUE); break;
-    case R_SCALE: ui_textn(8, y, corr_scale_names[proj.gen.scale % SCALE_COUNT], 12, PAL_VALUE); break;
-    case R_STYLE: ui_textn(8, y, corr_style_names[proj.gen.style % STYLE_COUNT], 12, PAL_VALUE); break;
-    case R_OCT: ui_num(8, y, (uint16_t)(proj.gen.octave + 1), 1, PAL_VALUE); ui_fill(9, y, 11, ' ', PAL_VALUE); break;
-    case R_MODE: ui_textn(8, y, corr_mode_names[proj.gen.mode % EVO_COUNT], 12, PAL_VALUE); break;
-    case R_SEED: ui_hex(8, y, proj.gen.seed, 4, PAL_VALUE); ui_text(13, y, "A:NEW+GEN", PAL_DIM); break;
+    case R_KEY: cv_text(vx, y, F_MAIN, CV_TEXT, key_n[proj.gen.key % 12]); break;
+    case R_SCALE: cv_text(vx, y, F_MAIN, CV_TEXT, corr_scale_names[proj.gen.scale % SCALE_COUNT]); break;
+    case R_STYLE: cv_text(vx, y, F_MAIN, CV_TEXT, corr_style_names[proj.gen.style % STYLE_COUNT]); break;
+    case R_OCT: cv_num(vx, y, F_MAIN, CV_TEXT, (uint16_t)(proj.gen.octave + 1), 0, 0); break;
+    case R_MODE: cv_text(vx, y, F_MAIN, CV_TEXT, corr_mode_names[proj.gen.mode % EVO_COUNT]); break;
+    case R_SEED:
+        hex4(b, proj.gen.seed); cv_text(vx, y, F_MAIN, CV_TEXT, b);
+        cv_text_r(x + COL_W, y + 1, F_SMALL, CV_TEXT3, "A NEW");
+        break;
+    case R_XSEED:
+        hex4(b, proj.xseed); cv_text(vx, y, F_MAIN, CV_TEXT, b);
+        cv_text_r(x + COL_W, y + 1, F_SMALL, CV_TEXT3, "A NEW+EXT");
+        break;
     case R_CODE: {
-        char c[12];
-        uint8_t i, x = 8;
+        char c[12], one[2] = { 0, 0 };
+        uint8_t i;
+        int cx = vx;
         corr_code_encode(&proj.gen, c);
         for (i = 0; i < 12; i++) {
-            if (i == 4 || i == 8) ui_put(x++, y, '-', PAL_DIM);
-            ui_put(x++, y, (uint8_t)c[i], (cur == R_CODE && digit == i) ? PAL_CURSOR : PAL_VALUE);
+            if (i == 4 || i == 8) cx = cv_text(cx, y, F_MAIN, CV_TEXT3, "-");
+            one[0] = c[i];
+            if (cur == R_CODE && digit == i) cv_rect(cx - 1, y + 7, cv_text_w(F_MAIN, one) + 2, 1, CV_ACCENT);
+            cx = cv_text(cx, y, F_MAIN, CV_TEXT, one);
         }
         break;
     }
     case R_COMPAT:
-        ui_textn(8, y, proj.compat == COMPAT_EXPANDED ? "EXPANDED" : "CLASSIC ", 9, PAL_VALUE);
-        ui_textn(17, y, proj.compat == COMPAT_EXPANDED ? "+ETCH II TRKS" : "=ETCH CORE   ", 13, PAL_DIM);
+        cv_text(vx, y, F_MAIN, CV_TEXT, proj.compat == COMPAT_EXPANDED ? "EXPANDED" : "CLASSIC");
         break;
-    case R_XSEED: ui_hex(8, y, proj.xseed, 4, PAL_VALUE); ui_text(13, y, "A:NEW+GEN EXT", PAL_DIM); break;
-    case R_ACT1: case R_ACT2: case R_ACT3: {
-        uint8_t i, a = (uint8_t)(r - R_ACT1);
-        for (i = 0; i < 3; i++) {
-            uint8_t on = (a == 2 && i == 0 && (p->lock & PLOCK_BASS)) || (a == 2 && i == 1 && (p->lock & PLOCK_ALL));
-            ui_textn((uint8_t)(i * 10), y, act_n[a][i], 9, (cur == r && col == i) ? PAL_CURSOR : on ? PAL_ALERT : PAL_TEXT);
-        }
-        break;
-    }
     default:
-        ui_num(8, y, *gptr(r), 2, PAL_VALUE);
-        ui_bar(11, y, 8, *gptr(r), 15, PAL_DIM);
+        cv_num(vx, y, F_MAIN, CV_TEXT, *gptr(r), 0, 0);
+        cv_slider(vx + 16, y, COL_W - 52, *gptr(r), 15, cur == r);
         break;
     }
 }
@@ -94,14 +122,24 @@ static void draw_row(uint8_t r)
 void scr_gen_enter(void)
 {
     uint8_t r;
+    char b[8];
     ui_header("GEN");
-    ui_text(0, 1, "CORROSION v2.4", PAL_DIM);
-    ui_text(16, 1, "PAT", PAL_DIM);
-    ui_num0(20, 1, (uint16_t)(seq_cur + 1), 2, PAL_VALUE);
-    ui_text(23, 1, "GEN", PAL_DIM);
-    ui_num0(27, 1, proj.pat[seq_cur].gen, 3, PAL_VALUE);
+    cv_text(6, 29, F_SMALL, CV_TEXT3, "CORROSION FROM ETCH 2.5");
+    cv_numfmt(b, proj.pat[seq_cur].gen, 3, 1);
+    {
+        int x = 234 - cv_text_w(F_MAIN, b);
+        cv_text(x, 28, F_MAIN, CV_TEXT, b);
+        x = x - 4 - cv_text_w(F_SMALL, "GEN");
+        cv_text(x, 29, F_SMALL, CV_TEXT2, "GEN");
+        cv_numfmt(b, (uint16_t)(seq_cur + 1), 2, 1);
+        x -= 8 + cv_text_w(F_MAIN, b);
+        cv_text(x, 28, F_MAIN, CV_TEXT, b);
+        cv_text(x - 4 - cv_text_w(F_SMALL, "PATTERN"), 29, F_SMALL, CV_TEXT2, "PATTERN");
+    }
+    cv_vline(6 + COL_W + 2, LIST_Y, 7 * ROW_P - 2, CV_BORDER);
+    cv_hline(6, BTN_Y - 4, 228, CV_BORDER);
     for (r = 0; r < N_ROWS; r++) draw_row(r);
-    ui_help("A+</>:SET  SEED CODE = ETCH");
+    ui_help("A+</> SET  </> COLUMN  A RUN  THE CODE IS ETCH'S");
     last_pat = seq_cur;
     last_commits = evo_commits;
 }
@@ -147,6 +185,10 @@ void scr_gen_frame(void)
     if (cur == R_CODE) {
         if ((nav & 1) && digit < 11) { digit++; draw_row(R_CODE); }
         if ((nav & 2) && digit) { digit--; draw_row(R_CODE); }
+    }
+    if (cur < R_ACT1 && cur != R_CODE && cur != R_SEED && cur != R_XSEED) {
+        if ((nav & 1) && cur < 7) cur = (uint8_t)(cur + 7);
+        else if ((nav & 2) && cur >= 7) cur = (uint8_t)(cur - 7);
     }
     if (cur >= R_ACT1) {
         if ((nav & 1) && col < 2) { col++; draw_row(cur); }

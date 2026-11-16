@@ -11,6 +11,7 @@
  *  flags: A toggles;  P / CD / SHAPE / KIT / LEN: A+<> change
  */
 #include "ui.h"
+#include "canvas.h"
 #include "seq.h"
 #include "evolve.h"
 #include "instruments.h"
@@ -19,12 +20,14 @@
 static uint8_t cur_s, cur_c, last_step = 0xFF, last_pat = 0xFF, last_commits;
 static uint8_t last_note = 33, last_xnote = 69;
 static const char *const cond_n[COND_COUNT] = { "---", "1:2", "2:2", "1:4", "2:4", "3:4", "4:4", "FIL", "!FL" };
-static const char *const lane_n[NUM_LANES] = { "KICK", "SNAR", "CLHT", "OPHT" };
+static const char *const lane_n[NUM_LANES] = { "KICK", "SNARE", "HAT", "OPEN" };
 extern const char * const drum_kit_names2[NUM_LANES][4];
 
-/* columns per track kind: x positions */
-static const uint8_t bx[6] = { 3, 7, 9, 11, 13, 15 };       /* NOTE A S L P CD */
-static const uint8_t xx[6] = { 3, 7, 9, 11, 13, 15 };       /* NOTE A S L P SHAPE */
+/* layout: one row per step (SMALL font, 7 px), a side panel on the right */
+#define TR_Y  37
+#define TR_P  7
+static const uint8_t cx_[6] = { 22, 46, 58, 70, 82, 96 };   /* NOTE A S L P CD/SHAPE (bass, ext) */
+#define SIDE_X 136
 
 static uint8_t ncols(void)
 {
@@ -36,75 +39,94 @@ static uint8_t ncols(void)
 
 static uint8_t lane_of(uint8_t c) { return app_track == TRK_KICK ? 0 : app_track == TRK_PERC ? 1 : (uint8_t)(2 + c); }
 
+static void note_txt(char *b, uint8_t midi)
+{
+    static const char nn[12][3] = { "C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-" };
+    b[0] = nn[midi % 12][0]; b[1] = nn[midi % 12][1]; b[2] = (char)('0' + (midi / 12 - 1) % 10); b[3] = 0;
+}
+
+static void cellt(uint8_t s, uint8_t c, const char *t, uint8_t ink)
+{
+    int x = cx_[c], y = TR_Y + s * TR_P;
+    cv_text(x, y + 1, F_SMALL, ink, t);
+    if (cur_s == s && cur_c == c) cv_frame(x - 2, y, cv_text_w(F_SMALL, t) + 4, TR_P, CV_ACCENT);
+}
+
 static void draw_row(uint8_t s)
 {
-    uint8_t y = (uint8_t)(2 + s), pat = seq_cur, playing = seq_playing;
+    int y = TR_Y + s * TR_P;
+    uint8_t pat = seq_cur, playing = seq_playing;
     const pattern_t *p = &proj.pat[pat];
     uint8_t ph = playing && (TRK_IS_CORE(app_track) ? seq_step == s : seq_xpos[xt_of_trk[app_track]] == s);
-    ui_num(0, y, (uint16_t)(s + 1), 2, ph ? PAL_PLAYHEAD : PAL_DIM);
-    ui_fill(2, y, 17, ' ', PAL_TEXT);
+    char b[6];
+    cv_rect(0, y, SIDE_X - 6, TR_P, ph ? CV_ACC_TINT : (s & 3) == 0 ? CV_BEAT : CV_BG);
+    cv_numfmt(b, (uint16_t)(s + 1), 2, 1);
+    cv_text(6, y + 1, F_SMALL, CV_TEXT3, b);
     if (app_track == TRK_BASS) {
-        uint8_t f = p->flags[s], t = f & STEP_TYPE_MASK, pal;
-        pal = (cur_s == s && cur_c == 0) ? PAL_CURSOR : PAL_VALUE;
-        if (t == STEP_NOTE) ui_note(bx[0], y, (uint8_t)(p->note[s] + 24), pal);
-        else ui_text(bx[0], y, t == STEP_TIE ? "===" : "---", cur_s == s && cur_c == 0 ? PAL_CURSOR : PAL_DIM);
-        ui_put(bx[1], y, (f & STEP_ACCENT) ? 'A' : '.', cur_s == s && cur_c == 1 ? PAL_CURSOR : PAL_VALUE);
-        ui_put(bx[2], y, (f & STEP_SLIDE) ? 'S' : '.', cur_s == s && cur_c == 2 ? PAL_CURSOR : PAL_VALUE);
-        ui_put(bx[3], y, (f & STEP_LOCK) ? 'L' : '.', cur_s == s && cur_c == 3 ? PAL_CURSOR : PAL_ALERT);
-        ui_put(bx[4], y, (uint8_t)('1' + (p->prob[s] & 7)), cur_s == s && cur_c == 4 ? PAL_CURSOR : PAL_TEXT);
-        ui_text(bx[5], y, cond_n[(p->prob[s] >> 4) % COND_COUNT], cur_s == s && cur_c == 5 ? PAL_CURSOR : PAL_TEXT);
+        uint8_t f = p->flags[s], t = f & STEP_TYPE_MASK;
+        if (t == STEP_NOTE) note_txt(b, (uint8_t)(p->note[s] + 24));
+        cellt(s, 0, t == STEP_NOTE ? b : t == STEP_TIE ? "===" : "---", t == STEP_NOTE ? ((f & STEP_ACCENT) ? CV_HOT : CV_TEXT) : CV_TEXT3);
+        cellt(s, 1, (f & STEP_ACCENT) ? "A" : ".", (f & STEP_ACCENT) ? CV_TEXT : CV_TEXT3);
+        cellt(s, 2, (f & STEP_SLIDE) ? "S" : ".", (f & STEP_SLIDE) ? CV_TEXT : CV_TEXT3);
+        cellt(s, 3, (f & STEP_LOCK) ? "L" : ".", (f & STEP_LOCK) ? CV_TEXT : CV_TEXT3);
+        b[0] = (char)('1' + (p->prob[s] & 7)); b[1] = 0;
+        cellt(s, 4, b, (p->prob[s] & 7) == 7 ? CV_TEXT3 : CV_TEXT);
+        cellt(s, 5, cond_n[(p->prob[s] >> 4) % COND_COUNT], (p->prob[s] >> 4) ? CV_TEXT : CV_TEXT3);
     } else if (TRK_IS_DRUM(app_track)) {
         uint8_t c;
         for (c = 0; c < ncols(); c++) {
-            uint8_t l = lane_of(c);
-            ui_put((uint8_t)(4 + c * 6), y, (p->drum[l] >> s) & 1 ? T_HIT : T_REST,
-                   cur_s == s && cur_c == c ? PAL_CURSOR : PAL_VALUE);
+            uint8_t l = lane_of(c), on = (p->drum[l] >> s) & 1;
+            int x = 30 + c * 40;
+            cv_rrect(x, y + 1, 11, 5, on ? (l == 0 ? CV_HOT : CV_NOTE) : CV_SURF2);
+            if (cur_s == s && cur_c == c) cv_frame(x - 2, y, 15, TR_P, CV_ACCENT);
         }
     } else {
         const xpattern_t *xp = &proj.xpat[pat];
         uint8_t xt = xt_of_trk[app_track], f = xp->trk[xt].flags[s], t = f & STEP_TYPE_MASK;
         uint8_t len = xp->len[xt] ? xp->len[xt] : 16, dim = s >= len;
-        if (t == STEP_NOTE) ui_note(xx[0], y, xp->trk[xt].note[s], cur_s == s && cur_c == 0 ? PAL_CURSOR : dim ? PAL_DIM : PAL_VALUE);
-        else ui_text(xx[0], y, t == STEP_TIE ? "===" : "---", cur_s == s && cur_c == 0 ? PAL_CURSOR : PAL_DIM);
-        ui_put(xx[1], y, (f & STEP_ACCENT) ? 'A' : '.', cur_s == s && cur_c == 1 ? PAL_CURSOR : PAL_VALUE);
-        ui_put(xx[2], y, (f & STEP_SLIDE) ? 'S' : '.', cur_s == s && cur_c == 2 ? PAL_CURSOR : PAL_VALUE);
-        ui_put(xx[3], y, (f & STEP_LOCK) ? 'L' : '.', cur_s == s && cur_c == 3 ? PAL_CURSOR : PAL_ALERT);
-        ui_put(xx[4], y, (uint8_t)('8' - (f >> XF_PROB_SHIFT)), cur_s == s && cur_c == 4 ? PAL_CURSOR : PAL_TEXT);
-        if (app_track == TRK_CHORD) ui_text(xx[5], y, chord_names[xp->shape[s] & 7], cur_s == s && cur_c == 5 ? PAL_CURSOR : PAL_TEXT);
+        if (t == STEP_NOTE) note_txt(b, xp->trk[xt].note[s]);
+        cellt(s, 0, t == STEP_NOTE ? b : t == STEP_TIE ? "===" : "---", t == STEP_NOTE && !dim ? CV_TEXT : CV_TEXT3);
+        cellt(s, 1, (f & STEP_ACCENT) ? "A" : ".", (f & STEP_ACCENT) ? CV_TEXT : CV_TEXT3);
+        cellt(s, 2, (f & STEP_SLIDE) ? "S" : ".", (f & STEP_SLIDE) ? CV_TEXT : CV_TEXT3);
+        cellt(s, 3, (f & STEP_LOCK) ? "L" : ".", (f & STEP_LOCK) ? CV_TEXT : CV_TEXT3);
+        b[0] = (char)('8' - (f >> XF_PROB_SHIFT)); b[1] = 0;
+        cellt(s, 4, b, (f >> XF_PROB_SHIFT) ? CV_TEXT : CV_TEXT3);
+        if (app_track == TRK_CHORD) cellt(s, 5, chord_names[xp->shape[s] & 7], CV_TEXT);
     }
 }
 
 static void draw_side(void)
 {
     const pattern_t *p = &proj.pat[seq_cur];
-    uint8_t x = 21;
-    ui_textn(x, 2, trk_names[app_track], 9, PAL_VALUE);
-    ui_textn(x, 3, eng_short(app_track), 9, PAL_DIM);
-    ui_text(x, 5, "PAT", PAL_LABEL); ui_num0((uint8_t)(x + 4), 5, (uint16_t)(seq_cur + 1), 2, PAL_VALUE);
-    ui_text(x, 6, "GEN", PAL_LABEL); ui_num0((uint8_t)(x + 4), 6, p->gen, 3, PAL_VALUE);
+    int x = SIDE_X, y = 30;
+    char b[8];
+    cv_rect(x, 27, 240 - x, 124, CV_BG);
+    cv_readout(x, y, 96, "TRACK", trk_names[app_track]);
+    cv_text_r(234, y, F_SMALL, CV_TEXT3, eng_short(app_track));
+    cv_numfmt(b, (uint16_t)(seq_cur + 1), 2, 1); cv_readout(x, y + 18, 44, "PATTERN", b);
+    cv_numfmt(b, p->gen, 3, 1); cv_readout(x + 50, y + 18, 46, "GENERATION", b);
+    y += 40;
     if (TRK_IS_DRUM(app_track)) {
         uint8_t c;
         for (c = 0; c < ncols(); c++) {
             uint8_t l = lane_of(c);
-            ui_textn(x, (uint8_t)(8 + c * 3), lane_n[l], 5, PAL_LABEL);
-            ui_textn(x, (uint8_t)(9 + c * 3), drum_kit_names2[l][p->kit[l] & 3], 6, PAL_VALUE);
-            ui_text(x, (uint8_t)(10 + c * 3), (p->lock & (PLOCK_LANE0 << l)) ? "LOCKED " : "       ", PAL_ALERT);
+            cv_readout(x, y, 60, lane_n[l], drum_kit_names2[l][p->kit[l] & 3]);
+            if (p->lock & (PLOCK_LANE0 << l)) { cv_rect(x + 64, y + 6, 30, 9, CV_ACCENT); cv_text(x + 66, y + 8, F_SMALL, CV_TEXT, "LOCKED"); }
+            y += 18;
         }
-        ui_text(x, 15, "KIT:A+<>", PAL_DIM);
-        ui_text(x, 16, "LOCK:B+v", PAL_DIM);
+        cv_text(x, y + 2, F_SMALL, CV_TEXT3, "A+</> KIT   B+v LOCK");
     } else if (app_track == TRK_BASS) {
-        ui_text(x, 8, (p->lock & PLOCK_BASS) ? "BASS LK" : "       ", PAL_ALERT);
-        ui_text(x, 9, (p->lock & PLOCK_ALL) ? "PATT LK" : "       ", PAL_ALERT);
-        ui_text(x, 11, "ORIGINAL", PAL_DIM);
-        ui_text(x, 12, "CORROSION", PAL_DIM);
+        if (p->lock & PLOCK_BASS) { cv_rect(x, y, 46, 9, CV_ACCENT); cv_text(x + 2, y + 2, F_SMALL, CV_TEXT, "BASS LOCKED"); }
+        if (p->lock & PLOCK_ALL) { cv_rect(x, y + 11, 46, 9, CV_ACCENT); cv_text(x + 2, y + 13, F_SMALL, CV_TEXT, "PATT LOCKED"); }
+        cv_text(x, y + 26, F_SMALL, CV_TEXT3, "THE ETCH BASS LINE");
+        cv_text(x, y + 33, F_SMALL, CV_TEXT3, "COMPOSED BY CORROSION");
     } else {
         uint8_t xt = xt_of_trk[app_track];
-        ui_text(x, 8, "LEN", PAL_LABEL);
-        ui_num((uint8_t)(x + 4), 8, proj.xpat[seq_cur].len[xt] ? proj.xpat[seq_cur].len[xt] : 16, 2, PAL_VALUE);
-        ui_text(x, 9, "B+<> LEN", PAL_DIM);
-        ui_text(x, 11, "ETCH II", PAL_DIM);
-        ui_text(x, 12, "EXTENSION", PAL_DIM);
-        if (proj.compat != COMPAT_EXPANDED) ui_text(x, 14, "CLASSIC:", PAL_ALERT), ui_text(x, 15, "SILENT", PAL_ALERT);
+        cv_numfmt(b, proj.xpat[seq_cur].len[xt] ? proj.xpat[seq_cur].len[xt] : 16, 0, 0);
+        cv_readout(x, y, 46, "LENGTH", b);
+        cv_text(x + 50, y + 8, F_SMALL, CV_TEXT3, "B+</>");
+        cv_text(x, y + 22, F_SMALL, CV_TEXT3, "AN ETCH II TRACK");
+        if (proj.compat != COMPAT_EXPANDED) { cv_rect(x, y + 32, 96, 9, CV_ACC_TINT); cv_text(x + 2, y + 34, F_SMALL, CV_TEXT, "CLASSIC: SILENT (SEE GEN)"); }
     }
 }
 
@@ -113,12 +135,18 @@ void scr_track_enter(void)
     uint8_t s;
     ui_header("TRACK");
     if (cur_c >= ncols()) cur_c = 0;
-    if (app_track == TRK_BASS) ui_text(0, 1, " # NOTE A S L P CD", PAL_DIM);
-    else if (TRK_IS_DRUM(app_track)) ui_text(0, 1, app_track == TRK_HATS ? " #  CLOSED OPEN" : " #  HIT", PAL_DIM);
-    else ui_text(0, 1, app_track == TRK_CHORD ? " # NOTE A S L P SHAPE" : " # NOTE A S L P", PAL_DIM);
+    cv_rect(0, 27, SIDE_X - 6, 9, CV_BG);
+    cv_text(6, 29, F_SMALL, CV_TEXT2, "#");
+    if (app_track == TRK_BASS || !TRK_IS_DRUM(app_track)) {
+        static const char *const h[6] = { "NOTE", "A", "S", "L", "P", "CD" };
+        uint8_t c;
+        for (c = 0; c < ncols(); c++) cv_text(cx_[c], 29, F_SMALL, CV_TEXT2, c == 5 && app_track == TRK_CHORD ? "SHAPE" : h[c]);
+    } else if (app_track == TRK_HATS) { cv_text(28, 29, F_SMALL, CV_TEXT2, "CLOSED"); cv_text(70, 29, F_SMALL, CV_TEXT2, "OPEN"); }
+    else cv_text(30, 29, F_SMALL, CV_TEXT2, "HIT");
+    cv_vline(SIDE_X - 5, 28, 122, CV_BORDER);
     for (s = 0; s < 16; s++) draw_row(s);
     draw_side();
-    ui_help("A:EDIT B+A:CLR B+L/R:TRACK");
+    ui_help("A EDIT  B+A CLEAR  B+L/R TRACK");
     last_step = 0xFF;
 }
 

@@ -46,6 +46,7 @@ extern char ui_textbuf[SCR_H][SCR_W + 1];   /* mirror of the text on screen (tes
 /* input */
 extern uint16_t key_held, key_pressed, key_released, key_repeat;
 void ui_input(void);
+void ui_key_sample(void) __attribute__((long_call));   /* VBlank: latch presses */
 uint8_t ui_nav(void);                       /* D-pad (no A/B held): bit per direction pressed/repeat */
 int8_t  ui_edit(uint8_t coarse);            /* A held + D-pad: delta */
 uint8_t ui_a_tap(void);                     /* A released without an edit */

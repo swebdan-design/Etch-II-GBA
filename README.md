@@ -4,7 +4,7 @@
 
 > One composition. Two machines. Two sonic interpretations.
 
-ETCH II is a generative electronic music instrument and an eight-piece living album for the Game Boy Advance, and the successor to **ETCH — A Generative Acid Machine** for the Game Boy. Both run the same composer, **CORROSION v2.4** — ETCH II contains ETCH's generator source unchanged — so a 12-digit seed code produces the same groove on both machines. ETCH II plays it through five software synthesizers (subtractive, 2-operator FM, wavetable, phase distortion, Karplus–Strong resonator) and procedural percussion, mixed in real time on the GBA's ARM7.
+ETCH II is a generative electronic music instrument and an eight-piece living album for the Game Boy Advance, and the successor to **ETCH — A Generative Acid Machine** for the Game Boy. Both run the same composer, **CORROSION** (from ETCH 2.5) — ETCH II contains ETCH's generator source unchanged — so a 12-digit seed code produces the same groove on both machines. ETCH II plays it through five software synthesizers (subtractive, 2-operator FM, wavetable, phase distortion, Karplus–Strong resonator) and procedural percussion, mixed in real time on the GBA's ARM7.
 
 ![ETCH II](release/artwork/ETCH_II_Cover_Small.png)
 
@@ -12,7 +12,7 @@ ETCH II is a generative electronic music instrument and an eight-piece living al
 
 1. Open `release/ETCH_II_by_Synth_Centric.gba` in mGBA or copy it to a flash cartridge (save type SRAM).
 2. Press START. OXIDE plays.
-3. **L / R** change screens; on LIVE, hold **A** and press ← → on ENGINE or MODE.
+3. **SELECT + ← / →** change screens; on LIVE, hold **A** and press ← → on ENGINE or MODE. Hold **R** for a fill.
 
 ## Contents
 

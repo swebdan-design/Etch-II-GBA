@@ -19,10 +19,10 @@ ETCH II is also **an album**: eight living compositions — OXIDE, FERRIC, VESSE
 
 1. Put the ROM on a flash cartridge or open it in an emulator (mGBA recommended).
 2. Press **START** on the title screen. OXIDE begins immediately.
-3. Press **R** to look around the screens, **L** to come back.
+3. Hold **SELECT** and press **→** to look around the screens, **SELECT + ←** to come back.
 4. On LIVE, move down to **ENGINE** (D-pad ↓ to the ENGINE row), hold **A** and press → : the bass changes from a subtractive acid voice to FM. Same notes, new instrument.
 5. Move to **MODE**, hold **A** and press → : DRIFT becomes CORRODE. Every two bars the music now rewrites itself more boldly.
-6. Go to FILE (press **L** once from LIVE), choose **SAVE**, pick a slot, press **A**.
+6. Go to FILE (**SELECT + ←** once from LIVE), choose **SAVE**, pick a slot, press **A**.
 
 ## 3. ETCH and ETCH II
 
@@ -60,14 +60,19 @@ ETCH II's own additions (the extra tracks, the synthesizers, their LFOs) each ha
 
 ## 6. The screens
 
-The header on every screen shows: `ETCH II | SCREEN … P01 > 132 D X F 1 ▶`
-— pattern number (`>` when another is queued), tempo, evolution mode (S/D/C), compatibility mode (C classic / X expanded), F while a fill plays, the beat, and play/stop. The bottom line explains the buttons or shows a message.
+ETCH II 2.0 wears the series face shared with ETCH DS: black on white, grey captions over black values, and one accent colour, **#F45423**, that always means "happening now" (the playhead, the cursor, the current screen, a lit button, the steps CORROSION has just changed).
+
+* **Header** (every screen): `ETCH II | SONG NAME` on the left, the seed code on the right (16 digits in EXPANDED), and an accent ▶ while playing.
+* **Screen bar:** LIVE · TRACK · SYNTH · MOD · GEN · MEMORY · SONG · FILE, the current one underlined in the accent. **SELECT + ←/→** moves along it and wraps.
+* **Hint line** (bottom): what the buttons do here; messages replace it for a moment.
 
 ### 6.1 LIVE — the instrument
 
-Eight track rows: **BASS, LEAD, CHORD, DRONE** (melodic roles) and **KICK, PERC, HATS, TEXTR**. BASS, KICK, PERC and HATS are ETCH's original material; the others are ETCH II extension tracks. Each row shows the track's engine, an activity light and the 16 steps with the playhead. Note symbols: small square = note, hollow square = accent, arrow = slide, bar = tie, diamond = drum hit (HATS: hollow = closed + open together, grey = open hat alone).
+Laid out as ETCH DS's LIVE. **BASS** is drawn as pitch bars (accented notes black, slides as a line into the next note, ties as a bar held across), with its **A/S** strip (accent, slide) beneath. Then the cell lanes **LEAD, CHORD, DRONE, KICK, PERC, HATS, TEXTR**: grey cells are off, dark cells are notes and hits, the kick and accents are black; on HATS a ring is an open hat. BASS, KICK, PERC and HATS are ETCH's original material; the others are ETCH II extension tracks (grey in CLASSIC, where they are silent).
 
-Below: **MODE** and the bars until the next evolution, the pattern's **GEN** (how many times it has evolved), **MUTATE**, style, **ENGINE** and **TONE** of the selected track, **REGEN**, the output level, the audio CPU load and an oscilloscope.
+Every fourth step sits on a light column; the playhead is an accent-tinted column (extension tracks of other lengths show their own). **Steps CORROSION has just changed glow in the accent and fade over the next bars.** The cursor is an accent outline. A muted track's name is struck through.
+
+Below, on the left, the controls: **MODE**, **MUTATE**, **ENGINE** and **TONE** of the selected track, and **REGEN**. On the right, the readouts **PATTERN** (with a lit FILL tag while a fill plays, and `>` and the next pattern when one is queued), **GENERATION**, **NEXT EVO** and **TEMPO**, then an oscilloscope and the audio CPU meter.
 
 ### 6.2 TRACK — the tracker
 
@@ -170,7 +175,7 @@ ETCH II saves to the cartridge's 32 KB battery SRAM: **four slots**, 8 KB each (
 
 ## 13. Performance controls
 
-Mute tracks on LIVE (A on a name). SELECT+A to evolve on the next bar, SELECT+B to undo, SELECT+START or B on LIVE for a fill, SELECT+↑/↓ to queue patterns, REGEN for half a bar of new material, ENGINE and TONE on LIVE to reshape the selected track while it plays, MODE and MUTATE to change how restless the piece is.
+Mute tracks on LIVE (A on a name). SELECT+A to evolve on the next bar, SELECT+B to undo, SELECT+START or B on LIVE for a latched fill, hold R for a fill while held, SELECT+↑/↓ to queue patterns, REGEN for half a bar of new material, ENGINE and TONE on LIVE to reshape the selected track while it plays, MODE and MUTATE to change how restless the piece is.
 
 ## 14. Technical specifications
 

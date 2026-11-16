@@ -15,7 +15,7 @@
 #include "etch.h"          /* ORIGINAL ETCH v2.4/2.5 data model (verbatim) */
 #include "corrosion.h"     /* ORIGINAL CORROSION API (verbatim)            */
 
-#define ETCH2_VERSION_STR "1.0"
+#define ETCH2_VERSION_STR "2.0"
 #define E2_PATTERNS   NUM_PATTERNS          /* 32, as ETCH */
 #define E2_SONG_LEN   32
 

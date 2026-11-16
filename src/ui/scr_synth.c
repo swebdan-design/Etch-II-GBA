@@ -4,7 +4,9 @@
  * MOD:   LFO, mix (level, pan, delay send, bit reduction) and master effects.
  * Each row: ^v select, A+<> -1/+1, A+^v coarse, B+A default.
  */
+#include <string.h>
 #include "ui.h"
+#include "canvas.h"
 #include "seq.h"
 #include "audio.h"
 #include "instruments.h"
@@ -67,30 +69,51 @@ static void build(void)
     if (cur >= nrows) cur = (uint8_t)(nrows - 1);
 }
 
+/* layout: two columns of rows (SERIES_SPEC.md 4.5, controls) */
+#define LIST_Y  42
+#define ROW_P   9
+#define COL_W   114
+
+static uint8_t per_col(void) { return (uint8_t)((nrows + 1) / 2); }
+
 static void draw_row(uint8_t r)
 {
     const row_t *w = &rows[r];
-    uint8_t y = (uint8_t)(3 + r), v = *w->ptr;
-    char t4[5] = { 0 };
-    ui_textn(0, y, w->label, 9, cur == r ? PAL_CURSOR : PAL_LABEL);
+    uint8_t v = *w->ptr, pc = per_col(), sel = cur == r;
+    int x = 6 + (r / pc) * (COL_W + 4), y = LIST_Y + (r % pc) * ROW_P;
+    char t[12];
+    cv_rect(x - 4, y - 1, COL_W + 4, ROW_P, CV_BG);
+    if (sel) cv_rect(x - 4, y, 2, 7, CV_ACCENT);
+    cv_text(x, y + 1, F_SMALL, sel ? CV_TEXT : CV_TEXT2, w->label);
     switch (w->kind) {
-    case K_ENGINE:  ui_textn(10, y, eng_names[v % ENG_COUNT], 9, PAL_VALUE); break;
-    case K_VOICING: ui_textn(10, y, voicing_names[v % 3], 9, PAL_VALUE); break;
-    case K_DEST:    ui_textn(10, y, lfo_dest_names[v % LFO_TO_COUNT], 9, PAL_VALUE); break;
-    case K_SHAPE:   ui_textn(10, y, lfo_shape_names[v % LFOS_COUNT], 9, PAL_VALUE); break;
-    case K_DTIME:   ui_textn(10, y, dtime_n[v & 7], 9, PAL_VALUE); break;
+    case K_ENGINE:  strcpy(t, eng_names[v % ENG_COUNT]); break;
+    case K_VOICING: strcpy(t, voicing_names[v % 3]); break;
+    case K_DEST:    strcpy(t, lfo_dest_names[v % LFO_TO_COUNT]); break;
+    case K_SHAPE:   strcpy(t, lfo_shape_names[v % LFOS_COUNT]); break;
+    case K_DTIME:   strcpy(t, dtime_n[v & 7]); break;
     case K_PAN:
-        ui_textn(10, y, v == 8 ? "CENTRE" : v < 8 ? "LEFT  " : "RIGHT ", 9, PAL_VALUE);
-        if (v != 8) ui_num(16, y, (uint16_t)(v < 8 ? 8 - v : v - 8), 1, PAL_VALUE);
+        if (v == 8) strcpy(t, "C");
+        else { t[0] = v < 8 ? 'L' : 'R'; cv_numfmt(t + 1, (uint16_t)(v < 8 ? 8 - v : v - 8), 0, 0); }
         break;
-    case K_PARAM:
-        param_text(param_def_of(&proj.patch[app_track], app_track), w->def, v, t4);
-        ui_textn(10, y, t4, 9, PAL_VALUE);
-        break;
-    default: ui_num(10, y, v, 2, PAL_VALUE); ui_fill(12, y, 7, ' ', PAL_VALUE); break;
+    case K_PARAM: param_text(param_def_of(&proj.patch[app_track], app_track), w->def, v, t); t[4] = 0; break;
+    default: cv_numfmt(t, v, 0, 0); break;
     }
-    if (w->max >= 3) ui_bar(20, y, 8, v, w->max, PAL_DIM);
-    else ui_fill(20, y, 8, ' ', PAL_DIM);
+    {   /* trim the padding the 1.0 tables carry */
+        int n = (int)strlen(t);
+        while (n && t[n - 1] == ' ') t[--n] = 0;
+    }
+    cv_text(x + 38, y, F_MAIN, CV_TEXT, t);
+    if (w->max >= 3 && w->kind == K_NUM) {
+        int sx = x + 70, W = 38, f = v * W / w->max;
+        cv_hline(sx, y + 3, W, CV_SURF3);
+        cv_rect(sx, y + 2, f, 3, CV_NOTE);
+        cv_rect(sx + f, y, 2, 7, sel ? CV_ACCENT : CV_TEXT);
+    } else if (w->max >= 3 && w->kind == K_PARAM) {
+        int sx = x + 70, W = 38, f = v * W / w->max;
+        cv_hline(sx, y + 3, W, CV_SURF3);
+        cv_rect(sx, y + 2, f, 3, CV_NOTE);
+        cv_rect(sx + f, y, 2, 7, sel ? CV_ACCENT : CV_TEXT);
+    }
 }
 
 static void enter(void)
@@ -98,20 +121,26 @@ static void enter(void)
     uint8_t r;
     build();
     ui_header(scr_kind ? "MOD" : "SYNTH");
-    ui_text(0, 1, "TRACK", PAL_DIM);
-    ui_textn(6, 1, trk_names[app_track], 6, PAL_VALUE);
-    ui_text(13, 1, TRK_IS_CORE(app_track) ? "CORE" : "EXT ", PAL_DIM);
-    ui_text(18, 1, "B+L/R:TRACK", PAL_DIM);
+    /* the track readout */
+    cv_text(6, 28, F_SMALL, CV_TEXT2, "TRACK");
+    {
+        int x = cv_text(6, 34, F_MAIN, CV_TEXT, trk_names[app_track]);
+        cv_text(x + 6, 35, F_SMALL, CV_TEXT3, TRK_IS_CORE(app_track) ? "ETCH TRACK" : "ETCH II TRACK");
+    }
+    cv_text_r(234, 35, F_SMALL, CV_TEXT2, "B+L/R TRACK");
+    cv_vline(6 + COL_W + 1, LIST_Y, per_col() * ROW_P - 2, CV_BORDER);
     for (r = 0; r < nrows; r++) draw_row(r);
-    ui_help(scr_kind ? "A+</>:SET  MASTER FX ARE SHARED" : "A+</>:SET  A+^v:COARSE  B+A:DEF");
+    ui_help(scr_kind ? "A+</> SET  </> COLUMN  MASTER FX ARE SHARED" : "A+</> SET  A+^v COARSE  B+A DEFAULT  </> COLUMN");
 }
 
 static void frame(void)
 {
-    uint8_t nav = ui_nav(), o = cur;
+    uint8_t nav = ui_nav(), o = cur, pc = per_col();
     int8_t d = ui_edit(4);
     if ((nav & 4) && cur) cur--;
     if ((nav & 8) && cur + 1 < nrows) cur++;
+    if ((nav & 1) && cur < pc && cur + pc < nrows) cur = (uint8_t)(cur + pc);
+    if ((nav & 2) && cur >= pc) cur = (uint8_t)(cur - pc);
     if (o != cur) { draw_row(o); draw_row(cur); }
     if (d || ui_clear()) {
         row_t *w = &rows[cur];

@@ -7,7 +7,8 @@
 #include "audio.h"
 #include "evolve.h"
 
-#define MAP SCREENBLOCK(30)
+#include "canvas.h"
+
 const char * const scr_names[SCR_COUNT] = { "LIVE", "TRACK", "SYNTH", "MOD", "GEN", "MEMORY", "SONG", "FILE" };
 char ui_textbuf[SCR_H][SCR_W + 1] EWRAM_BSS;
 
@@ -16,38 +17,81 @@ static uint16_t prev_keys;
 static uint8_t rep_timer;
 static uint8_t a_edited, b_used;
 static uint8_t msg_timer;
-static char help_text[SCR_W + 1];
+static char help_text[64];
+
+/*
+ * The cell layer: ETCH II 1.0's 30 x 20 character API, drawn onto the canvas
+ * in the series colours and ETCH DS's MAIN font.  Screens not yet laid out
+ * in pixels use it; it keeps every screen working while they move over.
+ */
+static uint16_t cell_tile[SCR_H][SCR_W] EWRAM_BSS;
+static uint8_t cell_pal[SCR_H][SCR_W] EWRAM_BSS;
+
+/* ETCH II 1.0 palettes -> series roles: { colour 0, 1 (ink), 2 (paper), 3 (detail) } */
+static const uint8_t pal_map[16][4] = {
+    { CV_BG, CV_TEXT,   CV_BG,       CV_ACCENT },   /* TEXT        */
+    { CV_BG, CV_TEXT2,  CV_BG,       CV_ACCENT },   /* LABEL       */
+    { CV_BG, CV_TEXT,   CV_BG,       CV_ACCENT },   /* VALUE       */
+    { CV_BG, CV_TEXT,   CV_ACCENT,   CV_TEXT },     /* CURSOR: lit */
+    { CV_BG, CV_TEXT3,  CV_BG,       CV_TEXT3 },    /* DIM         */
+    { CV_BG, CV_ACCENT, CV_BG,       CV_ACCENT },   /* PLAY        */
+    { CV_BG, CV_TEXT,   CV_BG,       CV_ACCENT },   /* HEAD        */
+    { CV_BG, CV_TEXT,   CV_ACC_TINT, CV_ACCENT },   /* ALERT       */
+    { CV_BG, CV_TEXT,   CV_BG,       CV_ACCENT },   /* LOGO        */
+    { CV_BG, CV_TEXT,   CV_ACC_TINT, CV_ACCENT },   /* PLAYHEAD    */
+    { CV_BG, CV_TEXT,   CV_SURF,     CV_ACCENT },   /* PANEL       */
+    { CV_BG, CV_TEXT2,  CV_SURF,     CV_ACCENT },   /* PANEL_LABEL */
+    { CV_BG, CV_SURF3,  CV_BG,       CV_SURF3 },    /* RUST1       */
+    { CV_BG, CV_TEXT3,  CV_BG,       CV_TEXT3 },    /* TARNISH     */
+    { CV_BG, CV_SCOPE,  CV_BG,       CV_TEXT3 },    /* SCOPE       */
+    { CV_BG, CV_BG,     CV_TEXT,     CV_TEXT },     /* INV         */
+};
+
+static void cell_draw(uint8_t x, uint8_t y)
+{
+    uint16_t t = cell_tile[y][x];
+    const uint8_t *m = pal_map[cell_pal[y][x] & 15];
+    if (t < 128) {
+        char s[2] = { (char)t, 0 };
+        cv_rect(x * 8, y * 8, 8, 8, m[2]);
+        if (t > ' ') cv_text(x * 8 + 1, y * 8, F_MAIN, m[1], s);
+        ui_textbuf[y][x] = (char)t;
+    } else if (t < 256) {
+        cv_blit_tile(x, y, &gfx_tiles[t * 8], m);
+        ui_textbuf[y][x] = '#';
+    }
+}
 
 void ui_init(void)
 {
-    uint32_t i;
-    volatile uint32_t *cb = CHARBLOCK(0);
-    for (i = 0; i < 256 * 8; i++) cb[i] = gfx_tiles[i];
-    for (i = 0; i < 256; i++) PAL_BG[i] = gfx_palette[i];
-    REG_BG0CNT = BG_CBB(0) | BG_SBB(30) | BG_4BPP | BG_PRIO(1);
-    REG_BG0HOFS = 0; REG_BG0VOFS = 0;
+    cv_init();
     ui_cls();
 }
 
 void ui_cls(void)
 {
     uint32_t i;
-    for (i = 0; i < 32 * 32; i++) MAP[i] = ' ';
-    for (i = 0; i < SCR_H; i++) { memset(ui_textbuf[i], ' ', SCR_W); ui_textbuf[i][SCR_W] = 0; }
+    cv_clear(CV_BG);
+    for (i = 0; i < SCR_H; i++) {
+        memset(ui_textbuf[i], ' ', SCR_W); ui_textbuf[i][SCR_W] = 0;
+        memset(cell_tile[i], 0, sizeof cell_tile[i]);
+    }
 }
 
 void ui_put(uint8_t x, uint8_t y, uint16_t tile, uint8_t pal)
 {
     if (x >= SCR_W || y >= SCR_H) return;
-    MAP[y * 32 + x] = (uint16_t)(tile | (pal << 12));
-    ui_textbuf[y][x] = (char)(tile < 128 ? tile : '#');
+    if (cell_tile[y][x] == tile && cell_pal[y][x] == pal) return;
+    cell_tile[y][x] = tile;
+    cell_pal[y][x] = pal;
+    cell_draw(x, y);
 }
 
-uint16_t ui_screen_tile(uint8_t x, uint8_t y) { return MAP[y * 32 + x]; }
+uint16_t ui_screen_tile(uint8_t x, uint8_t y) { return (uint16_t)(cell_tile[y][x] | (cell_pal[y][x] << 12)); }
 
 void ui_recolor(uint8_t x, uint8_t y, uint8_t w, uint8_t pal)
 {
-    while (w-- && x < SCR_W) { MAP[y * 32 + x] = (uint16_t)((MAP[y * 32 + x] & 0x0FFF) | (pal << 12)); x++; }
+    while (w-- && x < SCR_W) { ui_put(x, y, cell_tile[y][x], pal); x++; }
 }
 
 void ui_text(uint8_t x, uint8_t y, const char *s, uint8_t pal)
@@ -67,24 +111,15 @@ void ui_fill(uint8_t x, uint8_t y, uint8_t w, uint16_t tile, uint8_t pal)
 
 void ui_num(uint8_t x, uint8_t y, uint16_t v, uint8_t digits, uint8_t pal)
 {
-    char b[6];
-    int8_t i;
-    for (i = (int8_t)(digits - 1); i >= 0; i--) {
-        b[i] = (char)('0' + v % 10);
-        v /= 10;
-        if (!v) { i--; break; }
-    }
-    for (; i >= 0; i--) b[i] = ' ';
-    b[digits] = 0;
+    char b[8];
+    cv_numfmt(b, v, digits, 0);
     ui_text(x, y, b, pal);
 }
 
 void ui_num0(uint8_t x, uint8_t y, uint16_t v, uint8_t digits, uint8_t pal)
 {
-    char b[6];
-    int8_t i;
-    for (i = (int8_t)(digits - 1); i >= 0; i--) { b[i] = (char)('0' + v % 10); v /= 10; }
-    b[digits] = 0;
+    char b[8];
+    cv_numfmt(b, v, digits, 1);
     ui_text(x, y, b, pal);
 }
 
@@ -103,70 +138,98 @@ void ui_note(uint8_t x, uint8_t y, uint8_t midi, uint8_t pal)
     ui_put((uint8_t)(x + 2), y, (uint8_t)('0' + (midi / 12 - 1) % 10), pal);
 }
 
+/* a slider in the spec's style: 1 px track, fill, thumb */
 void ui_bar(uint8_t x, uint8_t y, uint8_t w, uint8_t v, uint8_t max, uint8_t pal)
 {
-    uint16_t px = max ? (uint16_t)((uint32_t)v * w * 8 / max) : 0;
+    int px = x * 8, py = y * 8, W = w * 8 - 2, f = max ? (int)((uint32_t)v * W / max) : 0;
     uint8_t i;
-    for (i = 0; i < w; i++) {
-        uint16_t c = px > 8 ? 8 : px;
-        ui_put((uint8_t)(x + i), y, (uint16_t)(T_HBAR + c), pal);
-        px = (uint16_t)(px - c);
-    }
+    for (i = 0; i < w; i++) { cell_tile[y][x + i] = 0xFFFF; ui_textbuf[y][x + i] = '#'; }
+    cv_rect(px, py, w * 8, 8, CV_BG);
+    cv_hline(px, py + 4, W, CV_SURF3);
+    cv_rect(px, py + 3, f, 3, pal == PAL_ALERT ? CV_ACCENT : CV_NOTE);
+    cv_rect(px + f, py + 1, 2, 7, pal == PAL_CURSOR || pal == PAL_ALERT ? CV_ACCENT : CV_TEXT);
 }
 
-/* ---- header (row 0) and help/message row (row 19) ---------------------- */
-static const char *hdr_name;
+/* ---- header + screen bar (rows 0..2) and hint line (row 19) ------------------- */
 void ui_header(const char *screen)
 {
-    hdr_name = screen;
-    ui_fill(0, 0, SCR_W, ' ', PAL_HEAD);
-    ui_text(0, 0, "ETCH II", PAL_HEAD);
-    ui_put(8, 0, T_VRULE, PAL_HEAD);
-    ui_text(9, 0, screen, PAL_HEAD);
+    uint8_t x, y;
+    (void)screen;
+    for (y = 0; y < 3; y++) for (x = 0; x < SCR_W; x++) { cell_tile[y][x] = 0xFFFF; ui_textbuf[y][x] = ' '; }
+    cv_header();
+    cv_tabs(app_screen);
     ui_header_update();
 }
 
 void ui_header_update(void)
 {
-    /* right side: pattern, BPM, transport, evolution mode */
-    static const char mode_c[3] = { 'S', 'D', 'C' };
-    ui_put(17, 0, 'P', PAL_HEAD);
-    ui_num0(18, 0, (uint16_t)(seq_cur + 1), 2, PAL_HEAD);
-    ui_put(20, 0, seq_queued != 0xFF ? '>' : ' ', PAL_HEAD);
-    ui_num(21, 0, proj.bpm, 3, PAL_HEAD);
-    ui_put(25, 0, (uint8_t)mode_c[proj.gen.mode % 3], proj.gen.mode == EVO_STABLE ? PAL_HEAD : PAL_PLAYHEAD);
-    ui_put(26, 0, proj.compat == COMPAT_EXPANDED ? 'X' : 'C', PAL_HEAD);
-    ui_put(27, 0, seq_fill ? 'F' : ' ', PAL_HEAD);
-    ui_put(29, 0, seq_playing ? T_PLAY : T_STOP, seq_playing ? PAL_PLAYHEAD : PAL_HEAD);
-    ui_put(28, 0, seq_playing ? (uint16_t)('1' + ((seq_step >> 2) & 3)) : ' ', PAL_HEAD);
+    static uint8_t last = 0xFF;
+    uint8_t st = (uint8_t)((seq_playing ? 1 : 0) | (seq_fill ? 2 : 0) | (((seq_step >> 2) & 3) << 2));
+    if (st == last && cell_tile[0][29] == 0xFFFF) return;
+    last = st;
+    /* play indicator in the header's right margin: accent triangle while playing */
+    cv_rect(235, 2, 5, 7, CV_BG);
+    if (seq_playing) { cv_vline(236, 2, 7, CV_ACCENT); cv_vline(237, 3, 5, CV_ACCENT); cv_vline(238, 4, 3, CV_ACCENT); cv_point(239, 5, CV_ACCENT); }
+}
+
+static void hint_draw(void)
+{
+    uint8_t x;
+    for (x = 0; x < SCR_W; x++) { cell_tile[SCR_H - 1][x] = 0xFFFF; ui_textbuf[SCR_H - 1][x] = ' '; }
+    cv_hint(help_text, 0);
 }
 
 void ui_help(const char *s)
 {
     uint8_t i;
-    for (i = 0; i < SCR_W && s[i]; i++) help_text[i] = s[i];
+    for (i = 0; i < sizeof help_text - 1 && s[i]; i++) help_text[i] = s[i];
     help_text[i] = 0;
-    if (!msg_timer) ui_textn(0, SCR_H - 1, help_text, SCR_W, PAL_DIM);
+    if (!msg_timer) hint_draw();
 }
 
 void ui_msg(const char *s)
 {
-    ui_textn(0, SCR_H - 1, s, SCR_W, PAL_VALUE);
+    uint8_t x;
+    for (x = 0; x < SCR_W; x++) { cell_tile[SCR_H - 1][x] = 0xFFFF; ui_textbuf[SCR_H - 1][x] = ' '; }
+    cv_hint(s, 1);
     msg_timer = 90;
 }
 
 void ui_msg_tick(void)
 {
-    if (msg_timer && !--msg_timer) ui_textn(0, SCR_H - 1, help_text, SCR_W, PAL_DIM);
+    if (msg_timer && !--msg_timer) hint_draw();
 }
 
 /* ---- input ------------------------------------------------------------------ */
-void ui_input(void)
+/* The VBlank interrupt samples the keys every frame and keeps every press and
+ * release until the main loop reads them, so a press shorter than a slow UI
+ * pass still arrives.  A key pressed and released within one pass counts as
+ * held for that pass (so A+D-pad combos and taps both still work). */
+static volatile uint16_t ks_down, ks_up, ks_last;
+void ui_key_sample(void)
 {
     uint16_t k = (uint16_t)(~REG_KEYINPUT & 0x03FF);
-    key_pressed = (uint16_t)(k & ~prev_keys);
-    key_released = (uint16_t)(~k & prev_keys);
+    ks_down |= (uint16_t)(k & ~ks_last);
+    ks_up |= (uint16_t)(~k & ks_last);
+    ks_last = k;
+}
+
+void ui_input(void)
+{
+    uint16_t k, down, up;
+    uint32_t ime = REG_IME;
+    REG_IME = 0;
+    k = ks_last; down = ks_down; up = ks_up;
+    ks_down = 0; ks_up = 0;
+    REG_IME = ime;
+    k = (uint16_t)(k | (down & ~prev_keys));             /* tapped within the pass: held for it */
+    key_pressed = (uint16_t)((k & ~prev_keys) | (down & ~prev_keys));
+    key_released = (uint16_t)((up & prev_keys) | (prev_keys & ~k));
     key_held = k;
+    {   /* a key both pressed and released inside the pass is released next pass */
+        uint16_t quick = (uint16_t)(down & up & ~ks_last);
+        if (quick) ks_up |= quick;
+    }
     key_repeat = key_pressed;
     if (k & KEY_DPAD & prev_keys) {
         if (++rep_timer >= 18) { key_repeat |= (uint16_t)(k & KEY_DPAD); rep_timer = 14; }

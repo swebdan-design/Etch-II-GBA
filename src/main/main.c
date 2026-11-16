@@ -41,6 +41,7 @@ void irq_dispatch(uint32_t flags)
     if (flags & IRQ_VBLANK) {
         audio_vblank();
         frame_count++;
+        ui_key_sample();                      /* no press is lost while the UI draws */
     }
 }
 
@@ -106,8 +107,16 @@ void app_new_project(void)
 }
 
 /* ---- global keys -------------------------------------------------------------- */
+static uint8_t r_fill;                       /* the fill R is holding */
+
 static void global_keys(void)
 {
+    /* hold R: fill while held (SERIES_SPEC.md 2.1).  It lets go of only the
+     * fill it started; a fill latched with SELECT+START or B stays on. */
+    if ((key_released & KEY_R) && r_fill) {
+        r_fill = 0;
+        if (seq_fill_hold) { app_fill_toggle(); ui_msg("FILL OFF"); }
+    }
     if (key_held & KEY_SELECT) {
         if (key_pressed & KEY_RIGHT) app_go((uint8_t)(app_screen + 1));
         if (key_pressed & KEY_LEFT) app_go((uint8_t)(app_screen + SCR_COUNT - 1));
@@ -132,8 +141,7 @@ static void global_keys(void)
         if (key_pressed & KEY_L) { app_track = (uint8_t)((app_track + TRK_COUNT - 1) % TRK_COUNT); app_redraw(); }
         if (key_pressed & (KEY_L | KEY_R)) ui_consume();
     } else {
-        if (key_pressed & KEY_R) app_go((uint8_t)(app_screen + 1));
-        if (key_pressed & KEY_L) app_go((uint8_t)(app_screen + SCR_COUNT - 1));
+        if ((key_pressed & KEY_R) && !seq_fill_hold) { app_fill_toggle(); r_fill = 1; ui_msg("FILL (RELEASE R: OFF)"); }
         if (key_pressed & KEY_START) {
             if (seq_playing) seq_stop();
             else { seq_seed_live(ui_entropy); seq_start(); }
@@ -146,7 +154,7 @@ static void global_keys(void)
  * screen (the GBA shows white while the display is blanked). */
 static void boot_stage(uint8_t n, const char *what)
 {
-    static const uint16_t col[8] = { 0x0C63, 0x0C6B, 0x0D6B, 0x1D6B, 0x1D8B, 0x21AD, 0x25CF, 0x2A10 };
+    static const uint16_t col[8] = { 0x7BDE, 0x77BD, 0x739C, 0x6F7B, 0x6B5A, 0x6739, 0x6318, 0x5EF7 };   /* light greys */
     PAL_BG[0] = col[n & 7];
     ui_text(0, 18, "STARTING", PAL_DIM);
     ui_put(9, 18, (uint8_t)('0' + n), PAL_VALUE);
@@ -183,7 +191,7 @@ int main(void)
     vblank_wait_bios();                      /* proves the interrupt works */
     boot_stage(7, "SAVE MEMORY");
     storage_init();
-    PAL_BG[0] = gfx_palette[0];
+    PAL_BG[0] = 0x7FFF;                      /* the backdrop is the canvas's BG (white) */
 
     scr_title_run();                          /* returns when START is pressed */
 

@@ -187,7 +187,7 @@ def main():
         seen = seen or any("PRESS START" in r for r in e.screen())
     rec("title: PRESS START blinks", seen)
     e.press("start"); e.run(30)
-    rec("START on the title starts playback in LIVE", e.u8("seq_playing") == 1 and "LIVE" in e.screen_row(0), e.screen_row(0))
+    rec("START on the title starts playback in LIVE", e.u8("seq_playing") == 1 and e.u8("app_screen") == 0, e.screen_row(0))
     e.shot(os.path.join(ART, "screen_live.png"))
 
     # ---- audio present, no dropouts --------------------------------------------------
@@ -199,18 +199,25 @@ def main():
     rec("stereo (L and R differ)", rms(x[:, 0] - x[:, 1]) > 50, "side rms %.0f" % rms(x[:, 0] - x[:, 1]))
 
     # ---- screens ----------------------------------------------------------------------
+    # SERIES_SPEC.md 2.1: SELECT+LEFT/RIGHT changes screens (wrapping); L and R never do
     names = ["LIVE", "TRACK", "SYNTH", "MOD", "GEN", "MEMORY", "SONG", "FILE"]
     okall = True
     for i, n in enumerate(names):
-        row = e.screen_row(0)
-        okall &= n in row
+        okall &= e.u8("app_screen") == i
         e.shot(os.path.join(ART, "screen_%s.png" % n.lower()))
-        e.press("r", 3, 8)
-    rec("R walks LIVE>TRACK>SYNTH>MOD>GEN>MEMORY>SONG>FILE and wraps", okall and "LIVE" in e.screen_row(0))
-    e.press("l", 3, 8)
-    rec("L goes back (LIVE < FILE)", "FILE" in e.screen_row(0))
-    e.combo("select", "right")
-    rec("SELECT+RIGHT also changes screen (ETCH shortcut)", "LIVE" in e.screen_row(0))
+        e.combo("select", "right")
+        e.run(8)
+    rec("SELECT+RIGHT walks LIVE>TRACK>SYNTH>MOD>GEN>MEMORY>SONG>FILE and wraps", okall and e.u8("app_screen") == 0)
+    e.combo("select", "left"); e.run(8)
+    rec("SELECT+LEFT goes back (LIVE < FILE)", e.u8("app_screen") == 7)
+    e.combo("select", "right"); e.run(8)
+    e.press("l", 3, 8); e.press("r", 3, 8)
+    rec("L and R do not change screens", e.u8("app_screen") == 0)
+    rec("tapping R leaves no fill behind", e.u8("seq_fill_hold") == 0)
+    e.hold("r"); e.run(30)
+    held = e.u8("seq_fill_hold")
+    e.release("r"); e.run(8)
+    rec("hold R: fill while held, off on release", held == 1 and e.u8("seq_fill_hold") == 0)
     rec("playback continued through screen changes", e.u8("seq_playing") == 1)
 
     # ---- tempo accuracy, CPU ---------------------------------------------------------
@@ -477,7 +484,7 @@ def main():
     e = E2()
     e.boot()
     for _ in range(7):
-        e.press("r", 3, 6)                                       # to FILE
+        e.combo("select", "right"); e.run(6)                     # to FILE
     for _ in range(5):
         e.press("down", 2, 3)                                    # SEED CODE
     e.press("a", 3, 10)

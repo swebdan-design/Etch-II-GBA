@@ -7,57 +7,88 @@
  * also bump the pattern's edit epoch, so a pending evolution prepared for
  * the old content can never land on the new one.
  */
+#include <string.h>
 #include "ui.h"
+#include "canvas.h"
 #include "seq.h"
 #include "evolve.h"
 #include "audio.h"
 
 enum { P_SONG, P_BPM, P_SWING, P_GATE, P_TUNE, P_START, P_COPY, P_PASTE, P_CLEAR, N_PANEL };
-static const char *const pl[N_PANEL] = { "MODE ", "BPM  ", "SWING", "GATE ", "TUNE ", "START", "COPY PAT", "PASTE PAT", "CLEAR PAT" };
+static const char *const pl[N_PANEL] = { "MODE", "BPM", "SWING", "GATE", "TUNE", "START", "COPY", "PASTE", "CLEAR" };
 static uint8_t pos, fld, panel, prow;
 static pattern_t clip EWRAM_BSS;
 static xpattern_t xclip EWRAM_BSS;
 static uint8_t have_clip, last_pos = 0xFF, last_pat = 0xFF;
 
+/* layout: the chain in two columns of 16 (left), the song panel (right) */
+#define CH_Y  38
+#define CH_P  7
+#define CH_W  54
+#define PN_X  126
+#define PN_Y  38
+#define PN_P  9
+
 static void draw_cell(uint8_t i)
 {
-    uint8_t x = (uint8_t)((i >> 4) * 10), y = (uint8_t)(2 + (i & 15));
+    int x = 6 + (i >> 4) * (CH_W + 4), y = CH_Y + (i & 15) * CH_P;
     uint8_t p = proj.song.pat[i], playing = proj.song.song && seq_playing && seq_chain_pos == i;
-    ui_num0(x, y, (uint16_t)(i + 1), 2, playing ? PAL_PLAYHEAD : PAL_DIM);
-    if (p < E2_PATTERNS) { ui_put((uint8_t)(x + 3), y, 'P', !panel && pos == i && fld == 0 ? PAL_CURSOR : PAL_VALUE); ui_num0((uint8_t)(x + 4), y, (uint16_t)(p + 1), 2, !panel && pos == i && fld == 0 ? PAL_CURSOR : PAL_VALUE); }
-    else ui_text((uint8_t)(x + 3), y, "END", !panel && pos == i && fld == 0 ? PAL_CURSOR : PAL_DIM);
-    ui_put((uint8_t)(x + 6), y, 'x', PAL_DIM);
-    ui_num((uint8_t)(x + 7), y, proj.song.rep[i], 2, !panel && pos == i && fld == 1 ? PAL_CURSOR : PAL_TEXT);
+    uint8_t c0 = !panel && pos == i && fld == 0, c1 = !panel && pos == i && fld == 1;
+    char b[8];
+    cv_rect(x - 2, y, CH_W + 2, CH_P, playing ? CV_ACC_TINT : ((i & 3) == 0 ? CV_BEAT : CV_BG));
+    cv_numfmt(b, (uint16_t)(i + 1), 2, 1);
+    cv_text(x, y + 1, F_SMALL, CV_TEXT3, b);
+    if (p < E2_PATTERNS) { b[0] = 'P'; cv_numfmt(b + 1, (uint16_t)(p + 1), 2, 1); }
+    else strcpy(b, "END");
+    cv_text(x + 14, y + 1, F_SMALL, p < E2_PATTERNS ? CV_TEXT : CV_TEXT3, b);
+    if (c0) cv_frame(x + 12, y, 16, CH_P, CV_ACCENT);
+    b[0] = 'X'; cv_numfmt(b + 1, proj.song.rep[i], 0, 0);
+    cv_text(x + 34, y + 1, F_SMALL, CV_TEXT2, b);
+    if (c1) cv_frame(x + 32, y, 16, CH_P, CV_ACCENT);
 }
 
 static void draw_panel(void)
 {
-    uint8_t r;
     static const uint8_t gfr[4] = { 6, 9, 12, 15 };
-    for (r = 0; r < N_PANEL; r++) {
-        uint8_t y = (uint8_t)(2 + r + (r >= P_COPY ? 2 : 0));
-        ui_textn(21, y, pl[r], 9, panel && prow == r ? PAL_CURSOR : PAL_LABEL);
-        if (r >= P_COPY) continue;
-        ui_fill(21, (uint8_t)(y + 1), 0, ' ', 0);
+    char b[8];
+    uint8_t r;
+    for (r = 0; r <= P_START; r++) {
+        int y = PN_Y + r * PN_P, vx = PN_X + 32;
+        uint8_t sel = panel && prow == r;
+        cv_rect(PN_X - 4, y - 1, 234 - PN_X + 4, PN_P, CV_BG);
+        cv_cap(PN_X, y, sel, pl[r]);
+        switch (r) {
+        case P_SONG: cv_text(vx, y, F_MAIN, CV_TEXT, proj.song.song ? "SONG" : "LOOP"); break;
+        case P_BPM: cv_num(vx, y, F_MAIN, CV_TEXT, proj.bpm, 0, 0); cv_slider(vx + 22, y, 50, (uint16_t)(proj.bpm - 60), 160, sel); break;
+        case P_SWING: cv_num(vx, y, F_MAIN, CV_TEXT, proj.swing, 0, 0); cv_slider(vx + 22, y, 50, proj.swing, 8, sel); break;
+        case P_GATE: cv_num(vx, y, F_MAIN, CV_TEXT, gfr[proj.gate & 3], 0, 0); cv_slider(vx + 22, y, 50, proj.gate & 3, 3, sel); break;
+        case P_TUNE: {
+            int8_t t = (int8_t)(proj.tune - 12);
+            b[0] = t < 0 ? '-' : '+'; cv_numfmt(b + 1, (uint16_t)(t < 0 ? -t : t), 0, 0);
+            cv_text(vx, y, F_MAIN, CV_TEXT, b);
+            break;
+        }
+        default: b[0] = 'P'; cv_numfmt(b + 1, (uint16_t)(proj.start_pattern + 1), 2, 1); cv_text(vx, y, F_MAIN, CV_TEXT, b); break;
+        }
     }
-    ui_textn(27, 2, proj.song.song ? "SNG" : "LP ", 3, PAL_VALUE);
-    ui_num(27, 3, proj.bpm, 3, PAL_VALUE);
-    ui_num(27, 4, proj.swing, 3, PAL_VALUE);
-    ui_num(27, 5, gfr[proj.gate & 3], 3, PAL_VALUE);
-    { int8_t t = (int8_t)(proj.tune - 12); ui_put(27, 6, t < 0 ? '-' : '+', PAL_VALUE); ui_num(28, 6, (uint16_t)(t < 0 ? -t : t), 2, PAL_VALUE); }
-    ui_num0(28, 7, (uint16_t)(proj.start_pattern + 1), 2, PAL_VALUE);
-    ui_text(21, 14, "CUR PAT", PAL_DIM); ui_num0(28, 14, (uint16_t)(seq_cur + 1), 2, PAL_VALUE);
-    ui_text(21, 15, have_clip ? "CLIP OK" : "       ", PAL_DIM);
+    cv_button(PN_X, 98, 34, 12, "COPY", panel && prow == P_COPY, 0);
+    cv_button(PN_X + 37, 98, 34, 12, "PASTE", panel && prow == P_PASTE, have_clip);
+    cv_button(PN_X + 74, 98, 34, 12, "CLEAR", panel && prow == P_CLEAR, 0);
+    cv_numfmt(b, (uint16_t)(seq_cur + 1), 2, 1);
+    cv_readout(PN_X, 118, 50, "PATTERN", b);
+    cv_readout(PN_X + 56, 118, 50, "CLIPBOARD", have_clip ? "FULL" : "EMPTY");
 }
 
 void scr_song_enter(void)
 {
     uint8_t i;
     ui_header("SONG");
-    ui_text(0, 1, "CHAIN  POS PAT x BARS", PAL_DIM);
+    cv_text(6, 29, F_SMALL, CV_TEXT2, "CHAIN");
+    cv_text(30, 29, F_SMALL, CV_TEXT3, "PATTERN X BARS");
+    cv_vline(PN_X - 7, CH_Y, 16 * CH_P, CV_BORDER);
     for (i = 0; i < E2_SONG_LEN; i++) draw_cell(i);
     draw_panel();
-    ui_help("A+</>:SET A:JUMP  SEL+^v:QUEUE");
+    ui_help("A+</> SET  A JUMP  SELECT+^v QUEUE");
 }
 
 void scr_song_frame(void)
@@ -129,6 +160,6 @@ void scr_song_frame(void)
         if (last_pos < E2_SONG_LEN) draw_cell(last_pos);
         last_pos = seq_chain_pos; last_pat = seq_cur;
         draw_cell(last_pos);
-        ui_num0(28, 14, (uint16_t)(seq_cur + 1), 2, PAL_VALUE);
+        draw_panel();
     }
 }
