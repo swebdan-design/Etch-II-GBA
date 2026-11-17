@@ -150,18 +150,12 @@ static void draw_code(void)
     cv_text(8, 135, F_SMALL, CV_TEXT3, "SOUNDS AND EXTRA TRACKS: SAVE A PROJECT TO KEEP THEM.");
 }
 
+/* the series' ABOUT texts (the same on every ETCH), word-wrapped to 28 characters */
 static const char *const about[4][14] = {
-    { "ETCH II", "A Generative Synthesis Machine", "by Synth Centric", "", "Version " ETCH2_VERSION_STR,
-      "", "A generative music machine", "for the Game Boy Advance.", "Its composer, CORROSION,", "writes the music; five",
-      "software synthesizers play", "it, live, on the console.", "", "" },
-    { "GENERATIVE MUSIC", "", "CORROSION composes a bass", "line and drums from a seed.", "In DRIFT or CORRODE it keeps",
-      "rewriting them at phrase", "boundaries, so every listen", "differs. A 12-digit seed", "code always makes the same",
-      "core groove: share the", "code to share the song.", "", "", "" },
-    { "SYNTH CENTRIC", "", "Dan Schwebel, known as", "Synth Centric, is an", "Australian beat maker,",
-      "music producer, writer and", "educator.", "", "ETCH II is a Synth", "Centric release.", "", "", "", "" },
-    { "CREDITS AND LICENCES", "", "Code: MIT licence.", "Music, artwork, names:", "(c) Synth Centric.",
-      "CORROSION: MIT licence.", "", "Startup code: devkitPro", "crtls (MPL-2.0).", "",
-      "All sounds are synthesised", "by the GBA. No samples.", "", "" },
+    { "ETCH II", "", "A generative synthesis", "machine by Synth Centric.", "Version " ETCH2_VERSION_STR ".", "", "Its composer, CORROSION,", "writes the music and keeps", "rewriting it. Five software", "synthesizers play it, live", "on the Game Boy Advance. It", "is also an album of eight", "songs.", "" },
+    { "GENERATIVE MUSIC", "", "Generative music is made by", "rules and chance. CORROSION", "composes from a seed and", "keeps rewriting, so every", "listen is different.", "", "A seed code always makes the", "same groove: share it to", "share the song.", "", "", "" },
+    { "SYNTH CENTRIC", "", "Dan Schwebel, known as Synth", "Centric, is an Australian", "beat maker, music producer,", "writer and educator.", "", "ETCH II is a Synth Centric", "release.", "", "", "", "", "" },
+    { "CREDITS", "", "Code and CORROSION: MIT", "licence. Music, artwork,", "names: (c) Synth Centric.", "", "Built with GCC. Every sound", "is synthesised: no samples.", "Startup code: devkitPro", "crtls (MPL-2.0).", "", "", "", "" }
 };
 
 static void draw_about(void)
