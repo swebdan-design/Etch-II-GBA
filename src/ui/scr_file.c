@@ -152,15 +152,15 @@ static void draw_code(void)
 
 static const char *const about[4][14] = {
     { "ETCH II", "A Generative Synthesis Machine", "by Synth Centric", "", "Version " ETCH2_VERSION_STR,
-      "", "The successor to ETCH, a", "generative acid machine for", "the Game Boy. The same", "composer, CORROSION,",
-      "now plays through five", "software synthesizers on", "the Game Boy Advance.", "" },
+      "", "A generative music machine", "for the Game Boy Advance.", "Its composer, CORROSION,", "writes the music; five",
+      "software synthesizers play", "it, live, on the console.", "", "" },
     { "GENERATIVE MUSIC", "", "CORROSION composes a bass", "line and drums from a seed.", "In DRIFT or CORRODE it keeps",
-      "rewriting them at phrase", "boundaries, so every listen", "differs. A 12-digit ETCH", "seed code gives the same",
-      "core groove on both", "machines; only the sound", "changes.", "", "" },
+      "rewriting them at phrase", "boundaries, so every listen", "differs. A 12-digit seed", "code always makes the same",
+      "core groove: share the", "code to share the song.", "", "", "" },
     { "SYNTH CENTRIC", "", "Dan Schwebel, known as", "Synth Centric, is an", "Australian beat maker,",
-      "music producer, writer and", "educator.", "", "ETCH and ETCH II are", "Synth Centric releases.", "", "", "", "" },
+      "music producer, writer and", "educator.", "", "ETCH II is a Synth", "Centric release.", "", "", "", "" },
     { "CREDITS AND LICENCES", "", "Code: MIT licence.", "Music, artwork, names:", "(c) Synth Centric.",
-      "CORROSION: from ETCH 2.5,", "MIT, unchanged.", "Startup code: devkitPro", "crtls (MPL-2.0).", "",
+      "CORROSION: MIT licence.", "", "Startup code: devkitPro", "crtls (MPL-2.0).", "",
       "All sounds are synthesised", "by the GBA. No samples.", "", "" },
 };
 

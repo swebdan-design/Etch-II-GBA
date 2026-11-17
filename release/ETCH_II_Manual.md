@@ -11,7 +11,7 @@ by Synth Centric
 
 ETCH II is a generative electronic music instrument and an album for the Game Boy Advance. Switch it on, press START, and a piece of music begins that writes itself: a bass line, drums and — in its expanded form — leads, chords, drones and textures, played by five software synthesizers that run on the GBA's processor.
 
-It is the successor to **ETCH — A Generative Acid Machine**, Synth Centric's Game Boy instrument. Both machines share one composer: **CORROSION v2.4**. ETCH II did not rewrite it — the very same code runs inside both cartridges. What changed is the sound: the Game Boy plays CORROSION's music on its four chip channels; the Game Boy Advance plays it through subtractive, FM, wavetable, phase-distortion and physical-resonator synthesis.
+Its composer is **CORROSION**, which writes the music from a seed and keeps rewriting it while it plays. Five synthesizers play it: subtractive, FM, wavetable, phase distortion and a physical resonator, all running live on the Game Boy Advance.
 
 ETCH II is also **an album**: eight living compositions — OXIDE, FERRIC, VESSEL, DEBRIS, STATIC, PATINA, FRACTURE, REMNANT — that play by themselves and are a little different every time you listen.
 
