@@ -4,6 +4,21 @@
 
 Every result below was measured; raw logs are in `docs/test_logs/`. What could **not** be verified is stated at the end.
 
+
+## ETCH II 2.0 (2026-11-17)
+
+2.0 changes the screens (the ETCH series look, `docs/SERIES_SPEC.md`), the controls (L/R no longer change screens; hold R for a fill) and the input sampling (every press is latched in the VBlank interrupt). The sound engine, CORROSION and the save format are unchanged: 1.0 saves load as they are.
+
+| Suite | Result |
+|---|---|
+| Host tests | 16 / 16, and ETCH's 44 CORROSION tests |
+| Emulator (mGBA, `make emutest`) | **77 / 77**: the 1.0 suite with the screen checks reading the current screen, plus two new checks (L and R don't change screens; hold R plays a fill only while held) |
+| UI timing | a full screen change takes 3-5 frames (drawing runs as ARM code in IWRAM); no press is lost however long a pass takes |
+
+Not yet tested on real hardware: in particular the accent colour on an original GBA screen (no backlight).
+
+The sections below are the 1.0 report.
+
 ## Environment
 
 | | |
